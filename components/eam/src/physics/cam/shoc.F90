@@ -728,10 +728,10 @@ subroutine update_prognostics_implicit( &
      ksrf,ca,cc,denom,ze)
 
   ! march u_wind one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,u_wind)
+  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,u_wind)
 
   ! march v_wind one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,v_wind)
+  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,v_wind)
 
 ! Call decomp for thermo variables
   flux_dummy(:) = 0._rtype ! fluxes applied explicitly, so zero fluxes out
@@ -740,17 +740,17 @@ subroutine update_prognostics_implicit( &
      flux_dummy,ca,cc,denom,ze)
 
   ! march temperature one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,thetal)
+  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,thetal)
 
   ! march total water one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,qw)
+  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,qw)
 
   ! march tke one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,tke)
+  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,tke)
 
   ! march tracers one step forward using implicit solver
   do p=1,num_tracer
-    call vd_shoc_solve(shcol,nlev,nlevi,ca,cc,denom,ze,tracer(:shcol,:nlev,p))
+    call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,tracer(:shcol,:nlev,p))
   enddo
 
   return
@@ -3435,9 +3435,13 @@ end subroutine vd_shoc_decomp
 ! ---------------------------------------------------------------
 
 subroutine vd_shoc_solve(&
-         shcol,nlev,nlevi,&   ! Input
+         shcol,nlev,&   ! Input
          ca,cc,denom,ze,&     ! Input
          var)                 ! Input/Output
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: vd_shoc_solve_f
+#endif
 
   implicit none
 
@@ -3446,8 +3450,6 @@ subroutine vd_shoc_solve(&
   integer, intent(in) :: shcol
   ! number of mid-point levels
   integer, intent(in) :: nlev
-  ! number of levels on the interface
-  integer, intent(in) :: nlevi
   ! superdiagonal
   real(rtype), intent(in) :: ca(shcol,nlev)
   ! subdiagonal
@@ -3465,6 +3467,20 @@ subroutine vd_shoc_solve(&
   ! Term in tri-diag solution
   real(rtype) :: zf(shcol,nlev)
 
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+     call vd_shoc_solve_f(shcol,nlev,&     ! Input
+                          ca,cc,denom,ze,& ! Input
+                          var)             ! Input/Output
+     return
+  endif
+#endif
+
+!do i=1,shcol
+!do k=1,nlev
+!write(*,*) "FOR",ca(i,k),cc(i,k)
+!enddo
+!enddo
 
   ! Calculate zf(k). Terms zf(k) and ze(k) are required in solution of
   ! tridiagonal matrix defined by implicit diffusion equation.

@@ -65,7 +65,8 @@ set(SHOC_TESTS_SRCS
     shoc_pblintd_cldcheck_tests.cpp
     shoc_compute_shoc_vapor_tests.cpp
     shoc_update_prognostics_implicit_tests.cpp
-    ) # SHOC_TESTS_SRCS
+    shoc_vd_shoc_solve_tests.cpp
+    ) # SHOC_TESTS_SRC
 
 # NOTE: tests inside this if statement won't be built in a baselines-only build
 if (NOT ${SCREAM_BASELINES_ONLY})

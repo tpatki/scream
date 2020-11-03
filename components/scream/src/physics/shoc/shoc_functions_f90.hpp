@@ -851,6 +851,21 @@ struct UpdatePrognosticsImplicitData : public PhysicsTestDataGeneric {
 
   PTDG_STD_DEF(UpdatePrognosticsImplicitData, 5, shcol, nlev, nlevi, num_tracer, dtime);
 };
+//create data structure for vd_shoc_solve
+struct VdShocSolveData : public PhysicsTestData {
+  // Inputs
+  Real *ca, *cc, *denom, *ze;
+
+  // Input/Output
+  Real *var;
+
+  //functions to initialize data
+  VdShocSolveData(Int shcol_, Int nlev_) :
+    PhysicsTestData(shcol_, nlev_, {&ca, &cc, &denom, &ze, &var}) {}
+
+  SHOC_NO_SCALAR(VdShocSolveData, 2);
+};//SHOCEnergydseData
+
 // Glue functions to call fortran from from C++ with the Data struct
 void shoc_grid                                      (SHOCGridData &d);
 void shoc_diag_obklen                               (SHOCObklenData &d);
@@ -909,11 +924,12 @@ void shoc_diag_second_moments_ubycond               (SHOCSecondMomentUbycondData
 void shoc_pblintd_init_pot                          (SHOCPblintdInitPotData &d);
 void shoc_pblintd_cldcheck                          (SHOCPblintdCldCheckData& d);
 void diag_second_moments_lbycond                    (DiagSecondMomentsLbycondData& d);
+void diag_second_moments                            (DiagSecondMomentsData& d);
+void diag_second_shoc_moments                       (DiagSecondShocMomentsData& d);
+void compute_shoc_vapor                             (ComputeShocVaporData& d);
+void update_prognostics_implicit                    (UpdatePrognosticsImplicitData& d);
+void vd_shoc_solve                                  (VdShocSolveData& d);
 
-void diag_second_moments(DiagSecondMomentsData& d);
-void diag_second_shoc_moments(DiagSecondShocMomentsData& d);
-void compute_shoc_vapor(ComputeShocVaporData& d);
-void update_prognostics_implicit(UpdatePrognosticsImplicitData& d);
 extern "C" { // _f function decls
 
 void calc_shoc_varorcovar_f(Int shcol, Int nlev, Int nlevi, Real tunefac,
@@ -979,6 +995,8 @@ void shoc_assumed_pdf_f(Int shcol, Int nlev, Int nlevi, Real* thetal, Real* qw, 
                         Real* thl_sec, Real* qw_sec, Real* wthl_sec, Real* w_sec, Real* wqw_sec,
                         Real* qwthl_sec, Real* w3, Real* pres, Real* zt_grid, Real* zi_grid,
                         Real* shoc_cldfrac, Real* shoc_ql, Real* wqls, Real* wthv_sec, Real* shoc_ql2);
+
+void vd_shoc_solve_f(Int shcol, Int nlev, Real* ca, Real* cc, Real* denom, Real* ze, Real* var);
 
 } // end _f function decls
 

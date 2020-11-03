@@ -9,6 +9,8 @@
 #include "ekat/ekat_pack_kokkos.hpp"
 #include "ekat/ekat_workspace.hpp"
 
+#include "ekat/util/ekat_tridiag.hpp"
+
 namespace scream {
 namespace shoc {
 
@@ -367,6 +369,17 @@ struct Functions
     const uview_1d<Spack>&       wthv_sec,
     const uview_1d<Spack>&       shoc_ql2);
 
+  KOKKOS_FUNCTION
+  static void vd_shoc_solve(
+    const MemberType&            team,
+    const Int&                   nlev,
+    const uview_1d<Spack>& ca,
+    const uview_1d<Spack>& cc,
+    const uview_1d<const Spack>& denom,
+    const uview_1d<const Spack>& ze,
+    const uview_1d<Spack>&       diag,
+    const uview_1d<Spack>&       var);
+
 }; // struct Functions
 
 } // namespace shoc
@@ -403,6 +416,7 @@ struct Functions
 # include "shoc_update_prognostics_implicit_impl.hpp"
 # include "shoc_diag_third_shoc_moments_impl.hpp"
 # include "shoc_assumed_pdf_impl.hpp"
+# include "shoc_vd_shoc_solve_impl.hpp"
 #endif // KOKKOS_ENABLE_CUDA
 
 #endif
