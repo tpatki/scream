@@ -728,10 +728,14 @@ subroutine update_prognostics_implicit( &
      ksrf,ca,cc,denom,ze)
 
   ! march u_wind one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,u_wind)
+  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,&
+          rdp_zt,dtime,ksrf,&
+                     u_wind)
 
   ! march v_wind one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,v_wind)
+  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,&
+  rdp_zt,dtime,ksrf,&
+             v_wind)
 
 ! Call decomp for thermo variables
   flux_dummy(:) = 0._rtype ! fluxes applied explicitly, so zero fluxes out
@@ -740,17 +744,25 @@ subroutine update_prognostics_implicit( &
      flux_dummy,ca,cc,denom,ze)
 
   ! march temperature one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,thetal)
+  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,&
+  rdp_zt,dtime,flux_dummy,&
+                     thetal)
 
   ! march total water one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,qw)
+  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,&
+  rdp_zt,dtime,flux_dummy,&
+                     qw)
 
   ! march tke one step forward using implicit solver
-  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,tke)
+  call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,&
+  rdp_zt,dtime,flux_dummy,&
+                     tke)
 
   ! march tracers one step forward using implicit solver
   do p=1,num_tracer
-    call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,tracer(:shcol,:nlev,p))
+    call vd_shoc_solve(shcol,nlev,ca,cc,denom,ze,&
+    rdp_zt,dtime,flux_dummy,&
+                       tracer(:shcol,:nlev,p))
   enddo
 
   return
@@ -3331,6 +3343,10 @@ subroutine vd_shoc_decomp( &
          flux, &                     ! Input
          ca,cc,denom,ze)             ! Output
 
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  use shoc_iso_f, only: vd_shoc_decomp_f
+#endif
+
   implicit none
 
 ! INPUT VARIABLES
@@ -3365,6 +3381,16 @@ subroutine vd_shoc_decomp( &
 ! LOCAL VARIABLES
   integer :: i, k
 
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+     call vd_shoc_decomp_f(shcol,nlev,nlevi,&          ! Input
+                           kv_term,tmpi,rdp_zt,dtime,& ! Input
+                           flux, &                     ! Input
+                           ca,cc,denom,ze)             ! Output
+     return
+  endif
+#endif
+
   ! Determine superdiagonal (ca(k)) and subdiagonal (cc(k)) coeffs of the
   ! tridiagonal diffusion matrix. The diagonal elements  (cb=1+ca+cc) are
   ! a combination of ca and cc; they are not required by the solver.
@@ -3376,8 +3402,8 @@ subroutine vd_shoc_decomp( &
     enddo
   enddo
 
-  ! The bottom element of the upper diagonal (ca) is zero (not used).
-  ! The subdiagonal (cc) is not needed in the solver.
+  ! The bottom element of the upper (lower, dl) diagonal (ca) is zero (not used).
+  ! The subdiagonal (upper, du) (cc) is not needed in the solver.
 
   ca(:,nlev) = 0._rtype
 
@@ -3437,6 +3463,7 @@ end subroutine vd_shoc_decomp
 subroutine vd_shoc_solve(&
          shcol,nlev,&   ! Input
          ca,cc,denom,ze,&     ! Input
+         rdp_zt, dtime, flux,&
          var)                 ! Input/Output
 
 #ifdef SCREAM_CONFIG_IS_CMAKE
@@ -3459,6 +3486,10 @@ subroutine vd_shoc_solve(&
   ! Term in tri-diag. matrix system
   real(rtype), intent(in) :: ze(shcol,nlev)
 
+  real(rtype), intent(in) :: rdp_zt(shcol,nlev)
+  real(rtype), intent(in) :: dtime
+  real(rtype), intent(in) :: flux(shcol)
+
 ! IN/OUT VARIABLES
   real(rtype), intent(inout) :: var(shcol,nlev)
 
@@ -3471,16 +3502,17 @@ subroutine vd_shoc_solve(&
   if (use_cxx) then
      call vd_shoc_solve_f(shcol,nlev,&     ! Input
                           ca,cc,denom,ze,& ! Input
+                          rdp_zt,dtime,flux,&
                           var)             ! Input/Output
      return
   endif
 #endif
 
-!do i=1,shcol
-!do k=1,nlev
-!write(*,*) "FOR",ca(i,k),cc(i,k)
-!enddo
-!enddo
+do i=1,shcol
+do k=1,nlev
+write(*,*) "ca-cc",ca(i,k),"-",cc(i,k)
+enddo
+enddo
 
   ! Calculate zf(k). Terms zf(k) and ze(k) are required in solution of
   ! tridiagonal matrix defined by implicit diffusion equation.

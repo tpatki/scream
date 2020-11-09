@@ -28,11 +28,13 @@ void Functions<S,D>
 ::vd_shoc_solve(
   const MemberType&            team,
   const Int&                   nlev,
-  const uview_1d<Spack>& ca,
-  const uview_1d<Spack>& cc,
+  const uview_1d<Spack>&       ca,
+  const uview_1d<Spack>&       cc,
   const uview_1d<const Spack>& denom,
   const uview_1d<const Spack>& ze,
-  const uview_1d<Spack>&       diag,
+  const uview_1d<const Spack>& rdp_zt,
+  const Scalar&                dtime,
+  const Scalar&                flux,
   const uview_1d<Spack>&       var)
 {
   using ekat::scalarize;
@@ -44,20 +46,40 @@ void Functions<S,D>
   TridiagArray<Scalar> A("A", 3, nlev, 1);
   DataArray<Scalar> B("B", nlev, 1);
 
+  //const auto As = scalarize(Am);
+  const auto dl = subview(A, 0, ALL(), ALL());
+  const auto d  = subview(A, 1, ALL(), ALL());
+  const auto du = subview(A, 2, ALL(), ALL());
+
   // Fill data
-  const auto Am = create_mirror_view(A);
-  const auto Bm = create_mirror_view(B);
+  //const auto Am = create_mirror_view(A);
+  //const auto Bm = create_mirror_view(B);
   {
-    //const auto As = scalarize(Am);
-    const auto dl = subview(A, 0, ALL(), ALL());
-    const auto d  = subview(A, 1, ALL(), ALL());
-    const auto du = subview(A, 2, ALL(), ALL());
+    const auto ca_s = scalarize(ca);
+    const auto cc_s = scalarize(cc);
+    const auto denom_s = scalarize(denom);
+    const auto ze_s = scalarize(ze);
+    const auto rdp_zt_s = scalarize(rdp_zt);
+
+
+    std::cout << std::endl << "ca:  ";
+    for (int k=0; k<nlev; ++k) std::cout << ca_s(k) << "   ";
+    std::cout << std::endl;
+    std::cout << std::endl << "cc:  ";
+    for (int k=0; k<nlev; ++k) std::cout << cc_s(k) << "   ";
+    std::cout << std::endl << std::endl;
+
+
 
     for (int i=0; i<1; ++i) {
       for (int k=0; k<nlev; ++k) {
-        dl(k,i) = scalarize(cc)(k);
-        du(k,i) = scalarize(ca)(k);
-        d(k,i) = 100;
+        dl(k,i) = (k!=0      ? -cc_s(k) : 0);
+        du(k,i) = (k!=nlev-1 ? -ca_s(k) : 0);
+
+        if (k==nlev-1) d(k,i) = 1/denom_s(k);
+        else if (k==0) d(k,i) = 1 + ca_s(k);
+        else           d(k,i) = 1 + ca_s(k) + cc_s(k);
+
       }
     }
 
@@ -70,9 +92,9 @@ void Functions<S,D>
   }
 
   {
-    const auto dl = get_diags(A, 0);
-    const auto d  = get_diags(A, 1);
-    const auto du = get_diags(A, 2);
+//    const auto dl = get_diags(A, 0);
+//    const auto d  = get_diags(A, 1);
+//    const auto du = get_diags(A, 2);
 
     std::cout << std::endl << "DL:  ";
     for (int k=0; k<nlev; ++k) std::cout << dl(k,0) << "   ";

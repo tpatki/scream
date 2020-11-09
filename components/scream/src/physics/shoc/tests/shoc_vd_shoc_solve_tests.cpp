@@ -31,52 +31,44 @@ struct UnitWrap::UnitTest<D>::TestVdShocSolve {
 
   static void run_bfb()
   {
-    VdShocSolveData SDS_f90[] = {
-      //               shcol, nlev
-      VdShocSolveData(1, 4)
-    };
+    VdShocSolveData  f90_solve(1, 3, 1);
+    f90_solve.randomize({ {f90_solve.var, {1,2}} });
+    VdShocSolveData cxx_solve(f90_solve);
 
-    static constexpr Int num_runs = sizeof(SDS_f90) / sizeof(VdShocSolveData);
+    VdShocDecompData f90_decomp(1, 3, 5, 1);
+    f90_decomp.randomize({{f90_decomp.kv_term, {1, 2}},
+                          {f90_decomp.tmpi, {1,2}},
+                          {f90_decomp.rdp_zt,{1,2}},
+                          {f90_decomp.flux, {1,2}} });
+    vd_shoc_decomp(f90_decomp);
 
-    // Generate random input data
-    for (auto& d : SDS_f90) {
-      d.randomize();
+    f90_solve.ca = f90_decomp.ca;
+    f90_solve.cc = f90_decomp.cc;
+    f90_solve.denom = f90_decomp.denom;
+    f90_solve.ze = f90_decomp.ze;
+    f90_solve.rdp_zt = f90_decomp.rdp_zt;
+    f90_solve.flux = f90_decomp.flux;
 
-      d.cc[0] = 0;
-      d.ca[3] = 0;
-    }
+    cxx_solve.ca = f90_decomp.ca;
+    cxx_solve.cc = f90_decomp.cc;
+    cxx_solve.denom = f90_decomp.denom;
+    cxx_solve.ze = f90_decomp.ze;
+    cxx_solve.rdp_zt = f90_decomp.rdp_zt;
+    cxx_solve.flux = f90_decomp.flux;
 
-    // Create copies of data for use by cxx. Needs to happen before fortran calls so that
-    // inout data is in original state
-    VdShocSolveData SDS_cxx[] = {
-      VdShocSolveData(SDS_f90[0]),
-    };
+    vd_shoc_solve(f90_solve);
 
-    // Assume all data is in C layout
-
-    // Get data from fortran
-    for (auto& d : SDS_f90) {
-      // expects data in C layout
-      vd_shoc_solve(d);
-    }
-
-    // Get data from cxx
-    for (auto& d : SDS_cxx) {
-      d.transpose<ekat::TransposeDirection::c2f>();
-      // expects data in fortran layout
-      vd_shoc_solve_f(d.shcol(), d.nlev(), d.ca, d.cc, d.denom, d.ze, d.var);
-      d.transpose<ekat::TransposeDirection::f2c>();
-    }
+    cxx_solve.transpose<ekat::TransposeDirection::c2f>();
+    vd_shoc_solve_f(cxx_solve.shcol(), cxx_solve.nlev(), cxx_solve.ca, cxx_solve.cc, cxx_solve.denom, cxx_solve.ze,
+                    cxx_solve.rdp_zt, cxx_solve.dtime, cxx_solve.flux,
+                    cxx_solve.var);
+    cxx_solve.transpose<ekat::TransposeDirection::f2c>();
 
     // Verify BFB results, all data should be in C layout
     std::cout << std::endl << std::endl << "OUTPUT: " << std::endl;
-    for (Int i = 0; i < num_runs; ++i) {
-      VdShocSolveData& d_f90 = SDS_f90[i];
-      VdShocSolveData& d_cxx = SDS_cxx[i];
-      for (Int k = 0; k < d_f90.total1x2(); ++k) {
-        //REQUIRE(d_f90.var[k] == d_cxx.var[k]);
-        std::cout << d_f90.var[k] << "        " << d_cxx.var[k] << std::endl;
-      }
+    for (Int k = 0; k < f90_solve.total1x2(); ++k) {
+      //REQUIRE(d_f90.var[k] == d_cxx.var[k]);
+      std::cout << f90_solve.var[k] << "        " << cxx_solve.var[k] << std::endl;
     }
   }
 };

@@ -377,13 +377,26 @@ subroutine shoc_assumed_pdf_f(shcol, nlev, nlevi, thetal, qw, w_field, thl_sec, 
   real(kind=c_real) , intent(out), dimension(shcol, nlev) :: shoc_cldfrac, shoc_ql, wqls, wthv_sec, shoc_ql2
 end subroutine shoc_assumed_pdf_f
 
-subroutine vd_shoc_solve_f(shcol, nlev, ca, cc, denom, ze, var) bind(C)
+subroutine vd_shoc_solve_f(shcol, nlev, ca, cc, denom, ze, rdp_zt, dtime, flux, var) bind(C)
   use iso_c_binding
 
   integer(kind=c_int) , value, intent(in) :: shcol, nlev
-  real(kind=c_real) , intent(in), dimension(shcol, nlev) :: ca,cc,denom,ze
+  real(kind=c_real) , intent(in), dimension(shcol, nlev) :: ca,cc,denom,ze,rdp_zt
+  real(kind=c_real), intent(in), value :: dtime
+  real(kind=c_real) , intent(in), dimension(shcol) :: flux
   real(kind=c_real) , intent(inout), dimension(shcol, nlev) :: var
 end subroutine vd_shoc_solve_f
+
+subroutine vd_shoc_decomp_f(shcol,nlev,nlevi,kv_term,tmpi,rdp_zt,dtime,flux,ca,cc,denom,ze) bind(C)
+  use iso_c_binding
+
+  integer(kind=c_int) , value, intent(in) :: shcol, nlev, nlevi
+  real(kind=c_real) , intent(in), dimension(shcol, nlevi) :: kv_term,tmpi
+  real(kind=c_real) , intent(in), dimension(shcol, nlev) :: rdp_zt
+  real(kind=c_real), intent(in), value :: dtime
+  real(kind=c_real) , intent(in), dimension(shcol) :: flux
+  real(kind=c_real) , intent(out), dimension(shcol, nlev) :: ca,cc,denom,ze
+end subroutine vd_shoc_decomp_f
 
 end interface
 

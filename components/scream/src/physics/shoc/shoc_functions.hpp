@@ -377,8 +377,25 @@ struct Functions
     const uview_1d<Spack>& cc,
     const uview_1d<const Spack>& denom,
     const uview_1d<const Spack>& ze,
-    const uview_1d<Spack>&       diag,
+    const uview_1d<const Spack>& rdp_zt,
+    const Scalar&                dtime,
+    const Scalar&                flux,
     const uview_1d<Spack>&       var);
+
+  KOKKOS_FUNCTION
+  static void vd_shoc_decomp(
+    const MemberType&            team,
+    const Int&                   nlev,
+    const Int&                   nlevi,
+    const uview_1d<const Spack>& kv_term,
+    const uview_1d<const Spack>& tmpi,
+    const uview_1d<const Spack>& rdp_zt,
+    const Scalar&                dtime,
+    const Scalar&                flux,
+    const uview_1d<Spack>&       ca,
+    const uview_1d<Spack>&       cc,
+    const uview_1d<Spack>&       denom,
+    const uview_1d<Spack>&       ze);
 
 }; // struct Functions
 
@@ -417,6 +434,7 @@ struct Functions
 # include "shoc_diag_third_shoc_moments_impl.hpp"
 # include "shoc_assumed_pdf_impl.hpp"
 # include "shoc_vd_shoc_solve_impl.hpp"
+# include "shoc_vd_shoc_decomp_impl.hpp"
 #endif // KOKKOS_ENABLE_CUDA
 
 #endif

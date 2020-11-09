@@ -114,6 +114,7 @@ struct UnitWrap {
     struct TestComputeShocVapor;
     struct TestUpdatePrognosticsImplicit;
     struct TestVdShocSolve;
+    struct TestVdShocDecomp;
   };
 
 };
