@@ -64,7 +64,6 @@ void Functions<S,D>
 
     std::cout << std::endl << "ca:  ";
     for (int k=0; k<nlev; ++k) std::cout << ca_s(k) << "   ";
-    std::cout << std::endl;
     std::cout << std::endl << "cc:  ";
     for (int k=0; k<nlev; ++k) std::cout << cc_s(k) << "   ";
     std::cout << std::endl << std::endl;
@@ -98,13 +97,10 @@ void Functions<S,D>
 
     std::cout << std::endl << "DL:  ";
     for (int k=0; k<nlev; ++k) std::cout << dl(k,0) << "   ";
-    std::cout << std::endl;
     std::cout << std::endl << "DU:  ";
     for (int k=0; k<nlev; ++k) std::cout << du(k,0) << "   ";
-    std::cout << std::endl;
     std::cout << std::endl << "D:   ";
     for (int k=0; k<nlev; ++k) std::cout << d(k,0) << "   ";
-    std::cout << std::endl;
     std::cout << std::endl << "RHS: ";
     for (int k=0; k<nlev; ++k) std::cout << B(k,0) << "   ";
     std::cout << std::endl;

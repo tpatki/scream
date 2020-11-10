@@ -392,10 +392,9 @@ struct Functions
     const uview_1d<const Spack>& rdp_zt,
     const Scalar&                dtime,
     const Scalar&                flux,
-    const uview_1d<Spack>&       ca,
-    const uview_1d<Spack>&       cc,
-    const uview_1d<Spack>&       denom,
-    const uview_1d<Spack>&       ze);
+    const uview_1d<Spack>&       du,
+    const uview_1d<Spack>&       dl,
+    const uview_1d<Spack>&       d);
 
 }; // struct Functions
 

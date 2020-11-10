@@ -773,7 +773,7 @@ void vd_shoc_decomp(VdShocDecompData &d){
   d.transpose<ekat::TransposeDirection::c2f>();
   vd_shoc_decomp_c(d.shcol(), d.nlev(), d.nlevi(),
                    d.kv_term, d.tmpi, d.rdp_zt, d.dtime, d.flux,
-                   d.ca, d.cc, d.denom, d.ze);
+                   d.du, d.dl, d.d);
   d.transpose<ekat::TransposeDirection::f2c>();
 }
 void vd_shoc_solve(VdShocSolveData &d){
@@ -2249,7 +2249,7 @@ void vd_shoc_solve_f(Int shcol, Int nlev, Real* ca, Real *cc, Real *denom, Real 
 
 void vd_shoc_decomp_f(Int shcol, Int nlev, Int nlevi,
                       Real *kv_term, Real *tmpi, Real *rdp_zt, Real dtime, Real *flux,
-                      Real* ca, Real* cc, Real* denom, Real* ze)
+                      Real* du, Real* dl, Real* d)
 {
   using SHF = Functions<Real, DefaultDevice>;
 
@@ -2262,17 +2262,17 @@ void vd_shoc_decomp_f(Int shcol, Int nlev, Int nlevi,
   using ExeSpace   = typename KT::ExeSpace;
   using MemberType = typename SHF::MemberType;
 
-  static constexpr Int num_2d_arrays = 7;
+  static constexpr Int num_2d_arrays = 6;
 
-  Kokkos::Array<view_1d, 1>          temp_1d_d;
+  Kokkos::Array<view_1d, 1>             temp_1d_d;
   Kokkos::Array<view_2d, num_2d_arrays> temp_2d_d;
 
   Kokkos::Array<int, num_2d_arrays> dim1_sizes = {shcol, shcol, shcol,
-                                               shcol, shcol, shcol, shcol};
+                                                  shcol, shcol, shcol,};
   Kokkos::Array<int, num_2d_arrays> dim2_sizes = {nlevi, nlevi, nlev,
-                                               nlev,  nlev,  nlev,  nlev};
+                                                  nlev,  nlev,  nlev};
   Kokkos::Array<const Real*, num_2d_arrays> ptr_array = {kv_term, tmpi, rdp_zt,
-                                                      ca, cc, denom, ze};
+                                                         du, dl, d};
 
   // Sync to device
   ekat::host_to_device({flux}, shcol, temp_1d_d);
@@ -2285,10 +2285,9 @@ void vd_shoc_decomp_f(Int shcol, Int nlev, Int nlevi,
     kv_term_d(temp_2d_d[0]),
     tmpi_d(temp_2d_d[1]),
     rdp_zt_d(temp_2d_d[2]),
-    ca_d(temp_2d_d[3]),
-    cc_d(temp_2d_d[4]),
-    denom_d(temp_2d_d[5]),
-    ze_d(temp_2d_d[6]);
+    du_d(temp_2d_d[3]),
+    dl_d(temp_2d_d[4]),
+    d_d(temp_2d_d[5]),
 
   const Int nk_pack = ekat::npack<Spack>(nlev);
   const auto policy = ekat::ExeSpaceUtils<ExeSpace>::get_default_team_policy(shcol, nk_pack);
@@ -2300,17 +2299,16 @@ void vd_shoc_decomp_f(Int shcol, Int nlev, Int nlevi,
     const auto kv_term_s = ekat::subview(kv_term_d, i);
     const auto tmpi_s = ekat::subview(tmpi_d, i);
     const auto rdp_zt_s = ekat::subview(rdp_zt_d, i);
-    const auto ca_s = ekat::subview(ca_d, i);
-    const auto cc_s = ekat::subview(cc_d, i);
-    const auto denom_s = ekat::subview(denom_d, i);
-    const auto ze_s = ekat::subview(ze_d, i);
+    const auto du_s = ekat::subview(du_d, i);
+    const auto dl_s = ekat::subview(dl_d, i);
+    const auto d_s = ekat::subview(d_d, i);
 
-    SHF::vd_shoc_decomp(team, nlev, nlevi, kv_term_s, tmpi_s, rdp_zt_s, dtime, flux_s, ca_s, cc_s, denom_s, ze_s);
+    SHF::new_shoc_decomp(team, nlev, nlevi, kv_term_s, tmpi_s, rdp_zt_s, dtime, flux_s, du_s, dl_s, d);
   });
 
   // Sync back to host
   Kokkos::Array<view_2d, 4> out_views = {ca_d, cc_d, denom_d, ze_d};
-  ekat::device_to_host<int, 4>({ca, cc, denom, ze}, shcol, nlev, out_views, true);
+  ekat::device_to_host<int, 4>({du, dl, d, ze}, shcol, nlev, out_views, true);
 }
 
 } // namespace shoc

@@ -387,7 +387,7 @@ subroutine vd_shoc_solve_f(shcol, nlev, ca, cc, denom, ze, rdp_zt, dtime, flux, 
   real(kind=c_real) , intent(inout), dimension(shcol, nlev) :: var
 end subroutine vd_shoc_solve_f
 
-subroutine vd_shoc_decomp_f(shcol,nlev,nlevi,kv_term,tmpi,rdp_zt,dtime,flux,ca,cc,denom,ze) bind(C)
+subroutine vd_shoc_decomp_f(shcol,nlev,nlevi,kv_term,tmpi,rdp_zt,dtime,flux,du,dl,d) bind(C)
   use iso_c_binding
 
   integer(kind=c_int) , value, intent(in) :: shcol, nlev, nlevi
@@ -395,7 +395,7 @@ subroutine vd_shoc_decomp_f(shcol,nlev,nlevi,kv_term,tmpi,rdp_zt,dtime,flux,ca,c
   real(kind=c_real) , intent(in), dimension(shcol, nlev) :: rdp_zt
   real(kind=c_real), intent(in), value :: dtime
   real(kind=c_real) , intent(in), dimension(shcol) :: flux
-  real(kind=c_real) , intent(out), dimension(shcol, nlev) :: ca,cc,denom,ze
+  real(kind=c_real) , intent(out), dimension(shcol, nlev) :: du,dl,d
 end subroutine vd_shoc_decomp_f
 
 end interface
