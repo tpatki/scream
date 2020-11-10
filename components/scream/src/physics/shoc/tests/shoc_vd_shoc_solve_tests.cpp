@@ -26,20 +26,69 @@ struct UnitWrap::UnitTest<D>::TestVdShocSolve {
 
   static void run_decomp()
   {
+    const bool random = true;
+    static constexpr Real var[6] = {10, 5, 15, 7, 4, 3};
+    static constexpr Real kv_term[6] = {2, 6, 4, 6, 7, 2};
+    static constexpr Real tmpi[6] = {1, 5, 1, 7, 6, 4};
+    static constexpr Real rdp_zt[6] = {15, 3, 2, 10, 9, 10};
+    static constexpr Real flux[6] = {1, 4};
 
+    static constexpr int shcol = 2;
+    static constexpr int nlev = 3;
+
+    VdShocSolveData  f90_solve(shcol, nlev, 1);
+    VdShocDecompData f90_decomp(shcol,nlev,nlev+1, 1);
+
+    if (random) {
+      f90_solve.randomize({ {f90_solve.var, {1,2}} });
+      f90_decomp.randomize({{f90_decomp.kv_term, {1, 2}},
+                            {f90_decomp.tmpi, {1,2}},
+                            {f90_decomp.rdp_zt,{1,2}},
+                            {f90_decomp.flux, {1,2}} });
+    }
+    else {
+      // Fill in test data
+      for(Int s = 0; s < shcol; ++s) {
+        // First on the nlev grid
+        for(Int n = 0; n < nlev; ++n) {
+          const auto index = n + s * nlev;
+          f90_solve.var[index] = var[index];
+
+          f90_decomp.kv_term[index] = kv_term[index];
+          f90_decomp.tmpi[index] = tmpi[index];
+          f90_decomp.rdp_zt[index] = rdp_zt[index];
+        }
+        f90_decomp.flux[s] = flux[s];
+      }
+    }
+
+    vd_shoc_decomp(f90_decomp);
+
+    // Fill in test data
+    for(Int s = 0; s < shcol; ++s) {
+      // First on the nlev grid
+      for(Int n = 0; n < nlev; ++n) {
+        const auto index = n + s * nlev;
+        f90_solve.du[index] = f90_decomp.du[index];
+        f90_solve.dl[index] = f90_decomp.dl[index];
+        f90_solve.d[index] = f90_decomp.d[index];
+      }
+    }
+
+    vd_shoc_solve(f90_solve);
   }
 
   static void run_solver()
   {
-//    const bool random = true;
-//    static constexpr Real var[3] = {10, 5, 15};
-//    static constexpr Real kv_term[3] = {2, 6, 4};
-//    static constexpr Real tmpi[3] = {1, 5, 1};
-//    static constexpr Real rdp_zt[3] = {15, 3, 2};
-//    static constexpr Real flux[2] = {1, 4};
+//    const bool random = false;
+//    static constexpr Real var[6] = {10, 5, 15, 7, 4, 3};
+//    static constexpr Real kv_term[6] = {2, 6, 4, 6, 7, 2};
+//    static constexpr Real tmpi[6] = {1, 5, 1, 7, 6, 4};
+//    static constexpr Real rdp_zt[6] = {15, 3, 2, 10, 9, 10};
+//    static constexpr Real flux[6] = {1, 4};
 
-//    static constexpr int shcol = 10;
-//    static constexpr int nlev = 71;
+//    static constexpr int shcol = 2;
+//    static constexpr int nlev = 3;
 
 //    VdShocSolveData  f90_solve(shcol, nlev, 1);
 //    VdShocDecompData f90_decomp(shcol,nlev,nlev+1, 1);
@@ -58,12 +107,12 @@ struct UnitWrap::UnitTest<D>::TestVdShocSolve {
 //        // First on the nlev grid
 //        for(Int n = 0; n < nlev; ++n) {
 //          const auto index = n + s * nlev;
-//          f90_solve.var[index] = var[n];
-//          cxx_solve.var[index] = var[n];
+//          f90_solve.var[index] = var[index];
+//          cxx_solve.var[index] = var[index];
 
-//          f90_decomp.kv_term[index] = kv_term[n];
-//          f90_decomp.tmpi[index] = tmpi[n];
-//          f90_decomp.rdp_zt[index] = rdp_zt[n];
+//          f90_decomp.kv_term[index] = kv_term[index];
+//          f90_decomp.tmpi[index] = tmpi[index];
+//          f90_decomp.rdp_zt[index] = rdp_zt[index];
 //        }
 //        f90_decomp.flux[s] = flux[s];
 //      }
@@ -119,7 +168,7 @@ struct UnitWrap::UnitTest<D>::TestVdShocSolve {
 
 namespace {
 
-TEST_CASE("vd_shoc_solve_property", "shoc")
+TEST_CASE("vd_shoc_decomp_bfb", "shoc")
 {
   using TestStruct = scream::shoc::unit_test::UnitWrap::UnitTest<scream::DefaultDevice>::TestVdShocSolve;
 
