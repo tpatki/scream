@@ -1333,29 +1333,27 @@ contains
     call update_prognostics_implicit(shcol, nlev, nlevi, num_tracer, dtime, dz_zt, dz_zi, rho_zt, zt_grid, zi_grid, tk, tkh, uw_sfc, vw_sfc, wthl_sfc, wqw_sfc, wtracer_sfc, thetal, qw, tracer, tke, u_wind, v_wind)
   end subroutine update_prognostics_implicit_c
 
-  subroutine vd_shoc_decomp_c(shcol, nlev, nlevi, kv_term, tmpi, rdp_zt, dtime, flux, du, dl, d) bind(C)
-    use shoc, only : new_shoc_decomp
+  subroutine vd_shoc_decomp_c(shcol, nlev, nlevi, kv_term, tmpi, rdp_zt, dtime, flux, du,dl,d) bind(C)
+    use shoc, only : vd_shoc_decomp
 
     integer(kind=c_int) , value, intent(in) :: shcol, nlev, nlevi
     real(kind=c_real) , intent(in), dimension(shcol, nlev) ::  rdp_zt
     real(kind=c_real) , intent(in), dimension(shcol, nlevi) :: kv_term, tmpi
     real(kind=c_real) , value, intent(in) :: dtime
     real(kind=c_real) , intent(in), dimension(shcol) :: flux
-    real(kind=c_real) , intent(out), dimension(shcol, nlev) :: du, dl, d
+    real(kind=c_real) , intent(out), dimension(shcol, nlev) :: du,dl,d
 
-    call vd_shoc_decomp(shcol, nlev, nlevi, kv_term, tmpi, rdp_zt, dtime, flux, du, dl, d)
+    call vd_shoc_decomp(shcol, nlev, nlevi, kv_term, tmpi, rdp_zt, dtime, flux, du,dl,d)
   end subroutine vd_shoc_decomp_c
 
-  subroutine vd_shoc_solve_c(shcol, nlev, ca, cc, denom, ze, rdp_zt, dtime, flux, var) bind(C)
+  subroutine vd_shoc_solve_c(shcol, nlev, du,dl,d, var) bind(C)
     use shoc, only : vd_shoc_solve
 
     integer(kind=c_int) , value, intent(in) :: shcol, nlev
-    real(kind=c_real) , intent(in), dimension(shcol, nlev) :: ca,cc,denom,ze,rdp_zt
-    real(kind=c_real) , value, intent(in) :: dtime
-    real(kind=c_real) , intent(in), dimension(shcol) :: flux
+    real(kind=c_real) , intent(in), dimension(shcol, nlev) :: du,dl,d
     real(kind=c_real) , intent(inout), dimension(shcol, nlev) :: var
 
-    call vd_shoc_solve(shcol, nlev, ca, cc, denom, ze, rdp_zt, dtime, flux, var)
+    call vd_shoc_solve(shcol, nlev, du,dl,d, var)
   end subroutine vd_shoc_solve_c
 
 end module shoc_iso_c

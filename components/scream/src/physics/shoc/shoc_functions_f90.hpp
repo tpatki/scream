@@ -860,7 +860,7 @@ struct VdShocDecompData : public PhysicsTestData {
   Real *flux;
 
   // Output
-  Real *du, *dl, *d;
+  Real *du,*dl,*d;
 
   //functions to initialize data
   VdShocDecompData(Int shcol_, Int nlev_, Int nlevi_, Real dtime_) :
@@ -876,14 +876,14 @@ struct VdShocDecompData : public PhysicsTestData {
 struct VdShocSolveData : public PhysicsTestData {
   // Inputs
   Real dtime;
-  Real *ca, *cc, *denom, *ze, *rdp_zt, *flux;
+  Real *du, *dl, *d;
 
   // Input/Output
   Real *var;
 
   //functions to initialize data
   VdShocSolveData(Int shcol_, Int nlev_, Real dtime_) :
-    PhysicsTestData(shcol_, nlev_, {&ca, &cc, &denom, &ze, &rdp_zt, &var}, {&flux}),
+    PhysicsTestData(shcol_, nlev_, {&du, &dl, &d, &var}),
                     dtime(dtime_){}
 
   SHOC_SCALARS(VdShocSolveData, 2, 1, dtime);
@@ -1022,7 +1022,7 @@ void shoc_assumed_pdf_f(Int shcol, Int nlev, Int nlevi, Real* thetal, Real* qw, 
                         Real* shoc_cldfrac, Real* shoc_ql, Real* wqls, Real* wthv_sec, Real* shoc_ql2);
 void vd_shoc_decomp_f(Int shcol, Int nlev, Int nlevi,
                       Real *kv_term, Real *tmpi, Real *rdp_zt,  Real dtime, Real *flux,
-                      Real* du, Real* dl, Real* d);
+                      Real* ca, Real* cc, Real* denom, Real* ze);
 void vd_shoc_solve_f(Int shcol, Int nlev, Real* ca, Real* cc, Real* denom, Real* ze, Real *rdp_zt, Real dtime, Real *flux, Real* var);
 
 } // end _f function decls
