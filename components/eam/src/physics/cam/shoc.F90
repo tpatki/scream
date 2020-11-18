@@ -683,7 +683,7 @@ subroutine update_prognostics_implicit( &
   real(rtype), intent(inout) :: tke(shcol,nlev)
 
 ! LOCAL VARIABLES
-  integer     :: p
+  integer     :: p,i,k
   real(rtype) :: rdp_zt(shcol,nlev)
   real(rtype) :: tmpi(shcol,nlevi)
   real(rtype) :: tkh_zi(shcol,nlevi)
@@ -871,6 +871,7 @@ function impli_srf_stress_term(shcol, rho_zi_sfc, uw_sfc, &
      ws           = max(bfb_sqrt(bfb_square(u_wind_sfc(i)) + bfb_square(v_wind_sfc(i))),wsmin)
      tau          = bfb_sqrt(bfb_square(taux) + bfb_square(tauy))
      ksrf(i)      = max(tau/ws, ksrfmin)
+
   enddo
 
   return
@@ -3425,6 +3426,14 @@ subroutine vd_shoc_decomp( &
   du(:,nlev) = 0._rtype
   dl(:,1)    = 0._rtype
 
+!write(*,*) ""
+!do i=1,shcol
+!  do k=1,nlev
+!    write(*,*) i,k,":",du(i,k),dl(i,k)
+!  enddo
+!enddo
+!write(*,*) ""
+
   ! Compute the diagonal and perform Thomas factorization. The diagonal
   ! elements are a combination of du and dl (d=1-du-dl). Surface fluxes
   ! are applied explicitly in the diagonal at the top level.
@@ -3490,15 +3499,25 @@ subroutine vd_shoc_solve(&
 ! LOCAL VARIABLES
   integer :: i, k
 
+!write(*,*) ""
+!do i=1,shcol
+!  do k=1,nlev
+!    write(*,*) i,k,":",var(i,k)
+!  enddo
+!enddo
+!write(*,*) ""
+
   ! Solve using Thomas algorithm
   do k=2,nlev
     do i=1,shcol
       var(i,k) = var(i,k) - dl(i,k)*var(i,k-1)
     enddo
   enddo
+
   do i=1,shcol
     var(i,nlev) = var(i,nlev)/d(i,nlev)
   enddo
+
   do k=nlev,2,-1
     do i=1,shcol
       var(i,k-1) = (var(i,k-1) - du(i,k-1)*var(i,k))/d(i,k-1)

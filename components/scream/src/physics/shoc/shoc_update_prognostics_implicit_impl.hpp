@@ -13,7 +13,6 @@ namespace shoc {
 
 template<typename S, typename D>
 KOKKOS_FUNCTION
-KOKKOS_FUNCTION
 void Functions<S,D>::update_prognostics_implicit(
   const MemberType&            team,
   const Int&                   nlev,
@@ -37,6 +36,9 @@ void Functions<S,D>::update_prognostics_implicit(
   const uview_1d<Spack>&       tkh_zi,
   const uview_1d<Spack>&       tk_zi,
   const uview_1d<Spack>&       rho_zi,
+  const uview_1d<Spack>&       du,
+  const uview_1d<Spack>&       dl,
+  const uview_1d<Spack>&       d,
   const uview_1d<Spack>&       thetal,
   const uview_1d<Spack>&       qw,
   const uview_2d<Spack>&       tracer,
@@ -44,69 +46,79 @@ void Functions<S,D>::update_prognostics_implicit(
   const uview_1d<Spack>&       u_wind,
   const uview_1d<Spack>&       v_wind)
 {
-  const auto nlev_packs  = ekat::npack<Spack>(nlev);
-  const auto nlevi_packs = ekat::npack<Spack>(nlevi);
+//  const auto nlev_packs  = ekat::npack<Spack>(nlev);
+//  const auto nlevi_packs = ekat::npack<Spack>(nlevi);
 
-  const auto last_nlev_pack = nlev-1;
-  const auto last_nlev_indx = (nlev-1)%Spack::n;
-  const auto last_nlevi_pack = nlevi-1;
-  const auto last_nlevi_indx = (nlevi-1)%Spack::n;
+//  const auto last_nlev_pack = nlev-1;
+//  const auto last_nlev_indx = (nlev-1)%Spack::n;
+//  const auto last_nlevi_pack = nlevi-1;
+//  const auto last_nlevi_indx = (nlevi-1)%Spack::n;
 
-  // linearly interpolate tkh, tk, and air density onto the interface grids
-  linear_interp(team,zt_grid,zi_grid,tkh,tkh_zi,nlev,nlevi,0);
-  linear_interp(team,zt_grid,zi_grid,tk,tk_zi,nlev,nlevi,0);
-  linear_interp(team,zt_grid,zi_grid,rho_zt,rho_zi,nlev,nlevi,0);
+//  // linearly interpolate tkh, tk, and air density onto the interface grids
+//  linear_interp(team,zt_grid,zi_grid,tkh,tkh_zi,nlev,nlevi,0);
+//  linear_interp(team,zt_grid,zi_grid,tk,tk_zi,nlev,nlevi,0);
+//  linear_interp(team,zt_grid,zi_grid,rho_zt,rho_zi,nlev,nlevi,0);
 
-  // Define the tmpi variable, which is really dt*(g*rho)**2/dp
-  // at interfaces. Substitue dp = g*rho*dz in the above equation
-  compute_tmpi(team, nlevi, dtime, rho_zi, dz_zi, tmpi);
+//  // Define the tmpi variable, which is really dt*(g*rho)**2/dp
+//  // at interfaces. Substitue dp = g*rho*dz in the above equation
+//  compute_tmpi(team, nlevi, dtime, rho_zi, dz_zi, tmpi);
 
-  // compute 1/dp term, needed in diffusion solver
-  dp_inverse(team, nlev, rho_zt, dz_zt, rdp_zt);
+//  // compute 1/dp term, needed in diffusion solver
+//  dp_inverse(team, nlev, rho_zt, dz_zt, rdp_zt);
 
-  // compute terms needed for the implicit surface stress (ksrf)
-  // and tke flux calc (wtke_sfc)
-  Scalar ksrf, wtke_sfc;
-  {
-    const auto wsmin = 1;
-    const auto ksrfmin = 1e-4;
-    const auto ustarmin = 0.01;
+//  // compute terms needed for the implicit surface stress (ksrf)
+//  // and tke flux calc (wtke_sfc)
+//  Scalar ksrf, wtke_sfc;
+//  {
+//    const auto wsmin = 1;
+//    const auto ksrfmin = 1e-4;
+//    const auto ustarmin = 0.01;
 
-    const auto rho = rho_zi(last_nlevi_pack)[last_nlevi_indx];
-    const auto uw = uw_sfc;
-    const auto vw = vw_sfc;
+//    const auto rho = rho_zi(last_nlevi_pack)[last_nlevi_indx];
+//    const auto uw = uw_sfc;
+//    const auto vw = vw_sfc;
 
-    const auto taux = rho*uw;
-    const auto tauy = rho*vw;
+//    const auto taux = rho*uw;
+//    const auto tauy = rho*vw;
 
-    const auto u_wind_sfc = u_wind(last_nlev_pack)[last_nlev_indx];
-    const auto v_wind_sfc = v_wind(last_nlev_pack)[last_nlev_indx];
+//    const auto u_wind_sfc = u_wind(last_nlev_pack)[last_nlev_indx];
+//    const auto v_wind_sfc = v_wind(last_nlev_pack)[last_nlev_indx];
 
-    const auto ws = std::max(std::sqrt((u_wind_sfc*u_wind_sfc) + v_wind_sfc*v_wind_sfc), sp(wsmin));
-    const auto tau = std::sqrt(taux*taux + tauy*tauy);
-    ksrf = std::max(tau/ws, sp(ksrfmin));
+//    const auto ws = std::max(std::sqrt((u_wind_sfc*u_wind_sfc) + v_wind_sfc*v_wind_sfc), sp(wsmin));
+//    const auto tau = std::sqrt(taux*taux + tauy*tauy);
+//    ksrf = std::max(tau/ws, sp(ksrfmin));
 
-    const auto ustar = std::max(std::sqrt(std::sqrt(uw*uw + vw*vw)), sp(ustarmin));
-    wtke_sfc = ustar*ustar*ustar;
-  }
+//    const auto ustar = std::max(std::sqrt(std::sqrt(uw*uw + vw*vw)), sp(ustarmin));
+//    wtke_sfc = ustar*ustar*ustar;
+//  }
 
-  // compute surface fluxes for liq. potential temp, water and tke
-  {
-    const auto rho_zi_sfc = rho_zi(last_nlevi_pack)[last_nlevi_indx];
-    const auto rdp_zt_sfc = rdp_zt(last_nlev_pack)[last_nlev_indx];
-    auto thetal_sfc = thetal(last_nlev_pack)[last_nlev_indx];
-    auto qw_sfc = qw(last_nlev_pack)[last_nlev_indx];
-    auto tke_sfc = tke(last_nlev_pack)[last_nlev_indx];
-    auto tracer_sfc = Kokkos::subview(tracer, nlev-1, Kokkos::ALL());
+//  std::cout << team.league_rank() << ": " << ksrf << ", " << wtke_sfc << std::endl;
 
-    sfc_fluxes(team, num_tracer, dtime, rho_zi_sfc, rdp_zt_sfc,
-               wthl_sfc, wqw_sfc, wtke_sfc, wtracer_sfc,
-               thetal_sfc, qw_sfc, tke_sfc, tracer_sfc);
+//  // compute surface fluxes for liq. potential temp, water and tke
+//  {
+//    const auto rho_zi_sfc = rho_zi(last_nlevi_pack)[last_nlevi_indx];
+//    const auto rdp_zt_sfc = rdp_zt(last_nlev_pack)[last_nlev_indx];
+//    auto thetal_sfc = thetal(last_nlev_pack)[last_nlev_indx];
+//    auto qw_sfc = qw(last_nlev_pack)[last_nlev_indx];
+//    auto tke_sfc = tke(last_nlev_pack)[last_nlev_indx];
+//    auto tracer_sfc = Kokkos::subview(tracer, nlev-1, Kokkos::ALL());
 
-    thetal(last_nlev_pack)[last_nlev_indx] = thetal_sfc;
-    qw(last_nlev_pack)[last_nlev_indx] = qw_sfc;
-    tke(last_nlev_pack)[last_nlev_indx] = tke_sfc;
-  }
+//    sfc_fluxes(team, num_tracer, dtime, rho_zi_sfc, rdp_zt_sfc,
+//               wthl_sfc, wqw_sfc, wtke_sfc, wtracer_sfc,
+//               thetal_sfc, qw_sfc, tke_sfc, tracer_sfc);
+
+//    thetal(last_nlev_pack)[last_nlev_indx] = thetal_sfc;
+//    qw(last_nlev_pack)[last_nlev_indx] = qw_sfc;
+//    tke(last_nlev_pack)[last_nlev_indx] = tke_sfc;
+//  }
+
+////  for (unsigned int p=0; p<num_tracer; ++p) {
+////    std::cout << team.league_rank() << "," << nlev << "," << p << ":   "
+////              << tracer(nlev-1,p/Spack::n)[p%Spack::n] << std::endl;
+////  }
+
+//  team.team_barrier();
+//  vd_shoc_decomp(team, nlev, tk_zi, tmpi, rdp_zt, dtime, ksrf, du, dl, d);
 
 
 

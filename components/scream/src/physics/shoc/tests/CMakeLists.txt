@@ -66,7 +66,6 @@ set(SHOC_TESTS_SRCS
     shoc_compute_shoc_vapor_tests.cpp
     shoc_update_prognostics_implicit_tests.cpp
     shoc_shoc_main_tests.cpp
-    shoc_vd_shoc_decomp_tests.cpp
     shoc_vd_shoc_solve_tests.cpp
     ) # SHOC_TESTS_SRCS
 

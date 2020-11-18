@@ -1,4 +1,4 @@
-#include "shoc_vd_shoc_decomp_impl.hpp"
+#include "shoc_tridiag_solver_impl.hpp"
 
 namespace scream {
 namespace shoc {

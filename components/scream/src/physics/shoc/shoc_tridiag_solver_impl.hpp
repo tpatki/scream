@@ -1,15 +1,11 @@
-#ifndef SHOC_VD_SHOC_DECOMP_IMPL_HPP
-#define SHOC_VD_SHOC_DECOMP_IMPL_HPP
+#ifndef SHOC_TRIDIAG_SOLVER_IMPL_HPP
+#define SHOC_TRIDIAG_SOLVER_IMPL_HPP
 
 #include "shoc_functions.hpp" // for ETI only but harmless for GPU
+#include "ekat/util/ekat_tridiag.hpp"
 
 namespace scream {
 namespace shoc {
-
-/*
- * Implementation of shoc vd_shoc_decomp. Clients should NOT
- * #include this file, but include shoc_functions.hpp instead.
- */
 
 template<typename S, typename D>
 KOKKOS_FUNCTION
@@ -58,6 +54,44 @@ void Functions<S,D>::vd_shoc_decomp(
     d(k).set(0 < range_pack && range_pack < nlev-1, 1 - du(k) - dl(k));
     d(k).set(range_pack == nlev-1, 1 - dl(k) + flux*dtime*ggr*rdp_zt(k));
   });
+}
+
+template<typename S, typename D>
+KOKKOS_FUNCTION
+void Functions<S,D>::vd_shoc_solve(
+  const MemberType&      team,
+  const Int&             nlev,
+  const Int&             num_rhs,
+  const uview_1d<const Spack>& du,
+  const uview_1d<const Spack>& dl,
+  const uview_1d<const Spack>& d,
+  const uview_2d<Spack>&       var)
+{
+//  for (unsigned int p=0; p<num_rhs; ++p) {
+//  for(unsigned int k=0; k<nlev; ++k) {
+//      std::cout << team.league_rank()+1 << "," << k+1 << "," << p+1 << ":   "
+//                << var(k,p/Spack::n)[p%Spack::n] << std::endl;
+//    }
+//  std::cout << std::endl;
+//  }
+
+  Kokkos::View<Scalar*, Kokkos::LayoutRight>
+    du_in("du", nlev),
+    dl_in("dl", nlev),
+    d_in ("d",  nlev);
+  for (Int k=0; k<nlev; ++k) {
+    const auto view_indx = k/Spack::n;
+    const auto pack_indx = k%Spack::n;
+
+    du_in(k) = du(view_indx)[pack_indx];
+    dl_in(k) = dl(view_indx)[pack_indx];
+    d_in(k)  = d (view_indx)[pack_indx];
+  }
+
+
+
+  ekat::bfb(team,dl_in,d_in,du_in,var);
+
 }
 
 } // namespace shoc

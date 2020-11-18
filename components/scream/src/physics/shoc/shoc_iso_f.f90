@@ -428,10 +428,10 @@ end subroutine dp_inverse_f
     real(kind=c_real) , intent(out), dimension(shcol, nlev) :: du, dl, d
   end subroutine vd_shoc_decomp_f
 
-  subroutine vd_shoc_solve_f(shcol, nlev, du, dl, d, var) bind(C)
+  subroutine vd_shoc_solve_f(shcol, nlev, num_rhs, du, dl, d, var) bind(C)
     use iso_c_binding
 
-    integer(kind=c_int) , value, intent(in) :: shcol, nlev
+    integer(kind=c_int) , value, intent(in) :: shcol, nlev, num_rhs
     real(kind=c_real) , intent(in), dimension(shcol, nlev) :: du, dl, d
     real(kind=c_real) , intent(inout), dimension(shcol, nlev) :: var
   end subroutine vd_shoc_solve_f

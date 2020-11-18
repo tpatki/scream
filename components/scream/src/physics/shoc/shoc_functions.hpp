@@ -346,6 +346,9 @@ struct Functions
     const uview_1d<Spack>&       tkh_zi,
     const uview_1d<Spack>&       tk_zi,
     const uview_1d<Spack>&       rho_zi,
+    const uview_1d<Spack>&       du,
+    const uview_1d<Spack>&       dl,
+    const uview_1d<Spack>&       d,
     const uview_1d<Spack>&       thetal,
     const uview_1d<Spack>&       qw,
     const uview_2d<Spack>&       tracer,
@@ -439,7 +442,14 @@ struct Functions
     const uview_1d<Spack>&       d);
 
   KOKKOS_FUNCTION
-  static void vd_shoc_solve(const Int& shcol, const Int& nlev, const uview_1d<const Spack>& du, const uview_1d<const Spack>& dl, const uview_1d<const Spack>& d, const uview_1d<Spack>& var);
+  static void vd_shoc_solve(
+    const MemberType&            team,
+    const Int&                   nlev,
+    const Int&                   num_rhs,
+    const uview_1d<const Spack>& du,
+    const uview_1d<const Spack>& dl,
+    const uview_1d<const Spack>& d,
+    const uview_2d<Spack>&       var);
 
   KOKKOS_FUNCTION
   static void sfc_fluxes(
@@ -496,7 +506,7 @@ struct Functions
 # include "shoc_compute_tmpi_impl.hpp"
 # include "shoc_dp_inverse_impl.hpp"
 # include "shoc_shoc_main_impl.hpp"
-# include "shoc_vd_shoc_decomp_impl.hpp"
+# include "shoc_triadiag_solver_impl.hpp"
 # include "shoc_vd_shoc_solve_impl.hpp"
 # include "shoc_sfc_fluxes_impl.hpp"
 #endif // KOKKOS_ENABLE_CUDA

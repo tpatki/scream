@@ -882,18 +882,22 @@ struct VdShocDecompData : public PhysicsTestData {
   
   SHOC_SCALARS(VdShocDecompData, 3, 1, dtime)
 };
-struct VdShocSolveData : public PhysicsTestData {
+struct VdShocSolveData  : public PhysicsTestDataGeneric {
   // Inputs
+  Int shcol, nlev, n_rhs;
   Real *du, *dl, *d;
-  
+
   // Inputs/Outputs
-  Real *var;
-  
-  VdShocSolveData(Int shcol_, Int nlev_) :
-    PhysicsTestData(shcol_, nlev_, {&du, &dl, &d, &var}) {}
-  
-  SHOC_NO_SCALAR(VdShocSolveData, 2)
+  Real *var, *rhs;
+
+  VdShocSolveData(Int shcol_, Int nlev_, Int n_rhs_) :
+    PhysicsTestDataGeneric({{ shcol_, nlev_ }, { shcol_, nlev_, n_rhs_}},
+                           {{ &du, &dl, &d, &rhs },  { &var }}, {}),
+                           shcol(shcol_), nlev(nlev_), n_rhs(n_rhs_) {}
+
+  PTDG_STD_DEF(VdShocSolveData, 3, shcol, nlev, n_rhs);
 };
+
 // Glue functions to call fortran from from C++ with the Data struct
 void shoc_grid                                      (SHOCGridData &d);
 void shoc_diag_obklen                               (SHOCObklenData &d);
@@ -1043,7 +1047,7 @@ void shoc_main_f(Int shcol, Int nlev, Int nlevi, Real dtime, Int nadv, Real* hos
                  Real* brunt, Real* shoc_ql2);
 void vd_shoc_decomp_f(Int shcol, Int nlev, Int nlevi, Real* kv_term, Real* tmpi, Real* rdp_zt, Real dtime,
                       Real* flux, Real* du, Real* dl, Real* d);
-void vd_shoc_solve_f(Int shcol, Int nlev, Real* du, Real* dl, Real* d, Real* var);
+void vd_shoc_solve_f(Int shcol, Int nlev, Int num_rhs, Real* du, Real* dl, Real* d, Real* var);
 void sfc_fluxes_f(Int shcol, Int num_tracer, Real dtime, Real* rho_zi_sfc, Real* rdp_zt_sfc, Real* wthl_sfc,
                   Real* wqw_sfc, Real* wtke_sfc, Real* wtracer_sfc, Real* thetal, Real* qw, Real* tke,
                   Real* wtracer);
