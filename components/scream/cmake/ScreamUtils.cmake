@@ -17,8 +17,9 @@ include(EkatUtils)
 
 function(CreateUnitTest target_name target_srcs scream_libs)
   set(options EXCLUDE_MAIN_CPP)
-  set(oneValueArgs EXE_ARGS DEP)
+  set(oneValueArgs)
   set(multiValueArgs
+    EXE_ARGS
     MPI_RANKS THREADS
     INCLUDE_DIRS
     COMPILER_DEFS
@@ -29,7 +30,7 @@ function(CreateUnitTest target_name target_srcs scream_libs)
     COMPILER_C_FLAGS
     COMPILER_CXX_FLAGS
     COMPILER_F_FLAGS
-    LABELS)
+    DEP LABELS)
   cmake_parse_arguments(PARSE_ARGV 3 CreateUnitTest "${options}" "${oneValueArgs}" "${multiValueArgs}")
   CheckMacroArgs(CreateUnitTest CreateUnitTest "${options}" "${oneValueArgs}" "${multiValueArgs}")
 
@@ -58,7 +59,6 @@ function(CreateUnitTest target_name target_srcs scream_libs)
   endif()
 
   EkatCreateUnitTest(${target_name} "${target_srcs}"
-    DEP " ${CreateUnitTest_DEP}"
     MPI_EXEC_NAME ${SCREAM_MPIRUN_EXE}
     MPI_NP_FLAG ${SCREAM_MPI_NP_FLAG}
     MPI_RANKS "${CreateUnitTest_MPI_RANKS}"
@@ -77,6 +77,7 @@ function(CreateUnitTest target_name target_srcs scream_libs)
     LIBS " ${test_libs}"
     LIBS_DIRS " ${SCREAM_TPL_LIBRARY_DIRS}"
     LINKER_FLAGS " ${SCREAM_LINK_FLAGS}"
+    DEP " ${CreateUnitTest_DEP}"
     LABELS " ${CreateUnitTest_LABELS}"
     "${cut_options}"
   )
