@@ -2143,9 +2143,9 @@ void update_prognostics_implicit_f(Int shcol, Int nlev, Int nlevi, Int num_trace
   Kokkos::Array<int, num_2d_arrays> dim1_sizes = {shcol, shcol, shcol, shcol, shcol,
                                                   shcol, shcol, shcol, shcol, shcol,
                                                   shcol, shcol, shcol};
-  Kokkos::Array<int, num_2d_arrays> dim2_sizes = {nlev,       nlev, nlev,  nlev, nlevi,
-                                                  num_tracer, nlev, nlevi, nlev, nlev,
-                                                  nlev,       nlev, nlev};
+  Kokkos::Array<int, num_2d_arrays> dim2_sizes = {nlev, nlevi, nlev,       nlev, nlevi,
+                                                  nlev, nlev,  num_tracer, nlev, nlev,
+                                                  nlev, nlev,  nlev};
   Kokkos::Array<const Real*, num_2d_arrays> ptr_array = {dz_zt_x, dz_zi_x,  rho_zt_x,       zt_grid_x, zi_grid_x,
                                                          tk_x,    tkh_x,    wtracer_sfc_x,  thetal_x,  qw_x,
                                                          tke_x,   u_wind_x, v_wind_x};
@@ -2301,6 +2301,107 @@ void update_prognostics_implicit_f(Int shcol, Int nlev, Int nlevi, Int num_trace
        // Call decomp for momentum variables
        team.team_barrier();
        SHF::vd_shoc_decomp(team, nlev, tk_zi, tmpi, rdp_zt, dtime, ksrf, du, dl, d);
+
+       // march u_wind and v_wind one step forward using implicit solver
+       {
+         Kokkos::View<Spack**, Kokkos::LayoutRight> X("X", nlev, ekat::npack<Spack>(2));
+         for (Int k=0; k<nlev; ++k) {
+           const auto k_view_indx = k/Spack::n;
+           const auto k_pack_indx = k%Spack::n;
+
+           const auto p1_view_indx = 1/Spack::n;
+           const auto p1_pack_indx = 1%Spack::n;
+           X(k,0)[0] = u_wind(k_view_indx)[k_pack_indx];
+           X(k,p1_view_indx)[p1_pack_indx] = v_wind(k_view_indx)[k_pack_indx];
+         }
+
+         SHF::vd_shoc_solve(team, nlev, du, dl, d, X);
+
+         for (Int k=0; k<nlev; ++k) {
+           const auto k_view_indx = k/Spack::n;
+           const auto k_pack_indx = k%Spack::n;
+
+           const auto p1_view_indx = 1/Spack::n;
+           const auto p1_pack_indx = 1%Spack::n;
+           u_wind(k_view_indx)[k_pack_indx] = X(k,0)[0];
+           v_wind(k_view_indx)[k_pack_indx] = X(k,p1_view_indx)[p1_pack_indx];
+         }
+       }
+
+       // Call decomp for thermo variables. Fluxes applied explicitly, so zero
+       // fluxes out for implicit solver decomposition.
+       ksrf = 0;
+       SHF::vd_shoc_decomp(team, nlev, tkh_zi, tmpi, rdp_zt, dtime, ksrf, du, dl, d);
+
+       {
+         Kokkos::View<Spack**, Kokkos::LayoutRight> X("X", nlev, ekat::npack<Spack>(3+num_tracer));
+         for (Int k=0; k<nlev; ++k) {
+           const auto k_view_indx = k/Spack::n;
+           const auto k_pack_indx = k%Spack::n;
+
+           const auto p1_view_indx = 1/Spack::n;
+           const auto p1_pack_indx = 1%Spack::n;
+           const auto p2_view_indx = 2/Spack::n;
+           const auto p2_pack_indx = 2%Spack::n;
+           X(k,0)[0] = thetal(k_view_indx)[k_pack_indx];
+           X(k,p1_view_indx)[p1_pack_indx] = qw(k_view_indx)[k_pack_indx];
+           X(k,p2_view_indx)[p2_pack_indx] = tke(k_view_indx)[k_pack_indx];
+
+           for (Int p=0; p<num_tracer; ++p) {
+             const auto p_view_indx = (p)/Spack::n;
+             const auto p_pack_indx = (p)%Spack::n;
+             const auto pp_view_indx = (p+3)/Spack::n;
+             const auto pp_pack_indx = (p+3)%Spack::n;
+
+             X(k,pp_view_indx)[pp_pack_indx] = tracer(k,p_view_indx)[p_pack_indx];
+           }
+         }
+
+//         for (unsigned int p=0; p<X.extent_int(1)*Spack::n; ++p) {
+//           for(unsigned int k=0; k<nlev; ++k) {
+//             std::cout << team.league_rank()+1 << "," << k+1 << "," << p+1 << ":   "
+//                       << X(k,p/Spack::n)[p%Spack::n] << std::endl;
+//           }
+//         std::cout << std::endl;
+//         }
+
+         SHF::vd_shoc_solve(team, nlev, du, dl, d, X);
+
+         for (Int k=0; k<nlev; ++k) {
+           const auto k_view_indx = k/Spack::n;
+           const auto k_pack_indx = k%Spack::n;
+
+           const auto p1_view_indx = 1/Spack::n;
+           const auto p1_pack_indx = 1%Spack::n;
+           const auto p2_view_indx = 2/Spack::n;
+           const auto p2_pack_indx = 2%Spack::n;
+           thetal(k_view_indx)[k_pack_indx] = X(k,0)[0];
+           qw(k_view_indx)[k_pack_indx] = X(k,p1_view_indx)[p1_pack_indx];
+           tke(k_view_indx)[k_pack_indx] = X(k,p2_view_indx)[p2_pack_indx];
+
+           for (Int p=0; p<num_tracer; ++p) {
+             const auto p_view_indx = (p)/Spack::n;
+             const auto p_pack_indx = (p)%Spack::n;
+             const auto pp_view_indx = (p+3)/Spack::n;
+             const auto pp_pack_indx = (p+3)%Spack::n;
+             tracer(k,p_view_indx)[p_pack_indx] = X(k,pp_view_indx)[pp_pack_indx];
+           }
+         }
+       }
+
+       // march temperature one step forward using implicit solver
+//       call vd_shoc_solve(shcol,nlev,du,dl,d,thetal)
+
+       // march total water one step forward using implicit solver
+//       call vd_shoc_solve(shcol,nlev,du,dl,d,qw)
+
+       // march tke one step forward using implicit solver
+//       call vd_shoc_solve(shcol,nlev,du,dl,d,tke)
+
+//       // march tracers one step forward using implicit solver
+//       do p=1,num_tracer
+//         call vd_shoc_solve(shcol,nlev,du,dl,d,tracer(:shcol,:nlev,p))
+//       enddo
      }
   });
 
@@ -2772,7 +2873,7 @@ void vd_shoc_solve_f(Int shcol, Int nlev, Int num_rhs, Real* du, Real* dl, Real*
 
     const auto var_s = Kokkos::subview(var_d, i, Kokkos::ALL(), Kokkos::ALL());
 
-    SHF::vd_shoc_solve(team, nlev, num_rhs, du_s, dl_s, d_s, var_s);
+    SHF::vd_shoc_solve(team, nlev, du_s, dl_s, d_s, var_s);
   });
 
   // Sync back to host

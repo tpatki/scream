@@ -445,7 +445,6 @@ struct Functions
   static void vd_shoc_solve(
     const MemberType&            team,
     const Int&                   nlev,
-    const Int&                   num_rhs,
     const uview_1d<const Spack>& du,
     const uview_1d<const Spack>& dl,
     const uview_1d<const Spack>& d,

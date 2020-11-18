@@ -61,19 +61,24 @@ KOKKOS_FUNCTION
 void Functions<S,D>::vd_shoc_solve(
   const MemberType&      team,
   const Int&             nlev,
-  const Int&             num_rhs,
   const uview_1d<const Spack>& du,
   const uview_1d<const Spack>& dl,
   const uview_1d<const Spack>& d,
   const uview_2d<Spack>&       var)
 {
-//  for (unsigned int p=0; p<num_rhs; ++p) {
-//  for(unsigned int k=0; k<nlev; ++k) {
+//  for (unsigned int p=0; p<var.extent_int(1)*Spack::n; ++p) {
+//    for(unsigned int k=0; k<nlev; ++k) {
 //      std::cout << team.league_rank()+1 << "," << k+1 << "," << p+1 << ":   "
 //                << var(k,p/Spack::n)[p%Spack::n] << std::endl;
 //    }
 //  std::cout << std::endl;
 //  }
+//    for(unsigned int k=0; k<nlev; ++k) {
+//      std::cout << team.league_rank()+1 << "," << k+1 << ":   "
+//                << d(k/Spack::n)[k%Spack::n] << std::endl;
+//    }
+//  std::cout << std::endl;
+
 
   Kokkos::View<Scalar*, Kokkos::LayoutRight>
     du_in("du", nlev),
