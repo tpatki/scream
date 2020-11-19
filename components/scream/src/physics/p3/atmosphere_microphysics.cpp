@@ -51,14 +51,10 @@ void P3Microphysics::set_grids(const std::shared_ptr<const GridsManager> grids_m
   // Inputs
   auto nondim = m/m;
   m_required_fields.emplace("ast",            scalar3d_layout_mid,   nondim, grid_name);
-  m_required_fields.emplace("ni_activated",   scalar3d_layout_mid,   1/kg, grid_name);
-  m_required_fields.emplace("nc_nuceat_tend", scalar3d_layout_mid,   1/(kg*s), grid_name);
   m_required_fields.emplace("pmid",           scalar3d_layout_mid,   Pa, grid_name);
   m_required_fields.emplace("dp",             scalar3d_layout_mid,   Pa, grid_name);
   m_required_fields.emplace("zi",             scalar3d_layout_int,   m, grid_name);
-  m_required_fields.emplace("T_prev",  scalar3d_layout_mid, K, grid_name);
-  m_required_fields.emplace("qv_prev", vector3d_layout_mid, Q, grid_name);
-
+//  m_required_fields.emplace("qv_prev", vector3d_layout_mid, Q, grid_name);
   // Input-Outputs
   m_required_fields.emplace("FQ", tracers_layout,      Q, grid_name);
   m_required_fields.emplace("T",  scalar3d_layout_mid, K, grid_name);
@@ -67,8 +63,71 @@ void P3Microphysics::set_grids(const std::shared_ptr<const GridsManager> grids_m
   m_computed_fields.emplace("FQ", tracers_layout,      Q, grid_name);
   m_computed_fields.emplace("T",  scalar3d_layout_mid, K, grid_name);
   m_computed_fields.emplace("q",  vector3d_layout_mid, Q, grid_name);
-  m_computed_fields.emplace("T_prev",  scalar3d_layout_mid, K, grid_name);
-  m_computed_fields.emplace("qv_prev", vector3d_layout_mid, Q, grid_name);
+//  m_computed_fields.emplace("qv_prev", vector3d_layout_mid, Q, grid_name);
+
+  // TODO: Fix the units for these variables
+  // Prognostic State
+  m_required_fields.emplace("qv",             scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("qc",             scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("qr",             scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("qi",             scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("qm",             scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("nc",             scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("nr",             scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("ni",             scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("bm",             scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("th_atm",         scalar3d_layout_mid,   nondim, grid_name);
+  //
+  m_computed_fields.emplace("qv",             scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("qc",             scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("qr",             scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("qi",             scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("qm",             scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("nc",             scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("nr",             scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("ni",             scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("bm",             scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("th_atm",         scalar3d_layout_mid,   nondim, grid_name);
+  // Diagnostic Inputs
+  m_required_fields.emplace("nc_nuceat_tend",  scalar3d_layout_mid,   1/(kg*s), grid_name);
+  m_required_fields.emplace("nccn_prescribed", scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("ni_activated",    scalar3d_layout_mid,   1/kg, grid_name);
+  m_required_fields.emplace("inv_qc_relvar",   scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("cld_frac_i",      scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("cld_frac_l",      scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("cld_frac_r",      scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("pres",            scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("dz",              scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("dpres",           scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("exner",           scalar3d_layout_mid,   nondim, grid_name);
+  m_required_fields.emplace("qv_prev",         scalar3d_layout_mid,        Q, grid_name);
+  m_required_fields.emplace("T_prev",          scalar3d_layout_mid,        K, grid_name);
+  //
+  m_computed_fields.emplace("nc_nuceat_tend",  scalar3d_layout_mid,   1/(kg*s), grid_name);
+  m_computed_fields.emplace("nccn_prescribed", scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("ni_activated",    scalar3d_layout_mid,   1/kg, grid_name);
+  m_computed_fields.emplace("inv_qc_relvar",   scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("cld_frac_i",      scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("cld_frac_l",      scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("cld_frac_r",      scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("pres",            scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("dz",              scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("dpres",           scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("exner",           scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("qv_prev",         scalar3d_layout_mid,        Q, grid_name);
+  m_computed_fields.emplace("T_prev",          scalar3d_layout_mid,        K, grid_name);
+  // Diagnostic Outputs
+  m_computed_fields.emplace("mu_c",               scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("lamc",               scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("qv2qi_depos_tend",   scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("precip_liq_surf",    scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("precip_ice_surf",    scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("diag_eff_radius_qc", scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("diag_eff_radius_qi", scalar3d_layout_mid,   nondim, grid_name);
+  // History Only
+  m_computed_fields.emplace("liq_ice_exchange", scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("vap_liq_exchange", scalar3d_layout_mid,   nondim, grid_name);
+  m_computed_fields.emplace("vap_ice_exchange", scalar3d_layout_mid,   nondim, grid_name);
 }
 
 // =========================================================================================
@@ -91,7 +150,9 @@ void P3Microphysics::initialize_impl (const util::TimeStamp& t0)
   //  - initable fields may not need initialization (e.g., some other atm proc that
   //    appears earlier in the atm dag might provide them).
 
-  std::vector<std::string> p3_inputs = {"q","T","FQ","ast","ni_activated","nc_nuceat_tend","pmid","dp","zi","qv_prev","T_prev"};
+  std::vector<std::string> p3_inputs = {"q","T","FQ","ast","ni_activated","nc_nuceat_tend","pmid","dp","zi","qv_prev","T_prev",
+                                        "qv", "qc", "qr", "qi", "qm", "nc", "nr", "ni", "bm" 
+                                       };
   using strvec = std::vector<std::string>;
   const strvec& allowed_to_init = m_p3_params.get<strvec>("Initializable Inputs",strvec(0));
   const bool can_init_all = m_p3_params.get<bool>("Can Initialize All Inputs", false);
@@ -139,7 +200,19 @@ void P3Microphysics::run_impl (const Real dt)
   }
 
   // Call f90 routine
-  p3_main_f90 (dt, m_raw_ptrs_in["zi"], m_raw_ptrs_in["pmid"], m_raw_ptrs_in["dp"], m_raw_ptrs_in["ast"], m_raw_ptrs_in["ni_activated"], m_raw_ptrs_in["nc_nuceat_tend"], m_raw_ptrs_out["q"], m_raw_ptrs_out["FQ"], m_raw_ptrs_out["T"], m_raw_ptrs_out["qv_prev"], m_raw_ptrs_out["T_prev"]);
+  p3_main_f90 (dt, 
+               m_raw_ptrs_in["zi"], 
+               m_raw_ptrs_in["pmid"], 
+               m_raw_ptrs_in["dp"], 
+               m_raw_ptrs_in["ast"], 
+               m_raw_ptrs_in["ni_activated"], 
+               m_raw_ptrs_in["nc_nuceat_tend"], 
+               m_raw_ptrs_out["q"], 
+               m_raw_ptrs_out["FQ"], 
+               m_raw_ptrs_out["T"], 
+               m_raw_ptrs_out["qv_prev"], 
+               m_raw_ptrs_out["T_prev"]
+              );
 
   // Copy outputs back to device
   for (auto& it : m_p3_fields_out) {

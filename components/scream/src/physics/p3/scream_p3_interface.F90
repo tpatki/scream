@@ -57,7 +57,9 @@ contains
 
   end subroutine p3_init_f90
   !====================================================================!
-  subroutine p3_standalone_init_f90 (q,T_atm,zi,pmid,dpres,ast,ni_activated,nc_nuceat_tend, qv_prev, t_prev) bind(c)
+  subroutine p3_standalone_init_f90 (q,T_atm,zi,pmid,dpres,ast,ni_activated,nc_nuceat_tend, qv_prev, t_prev, &
+                                     qv, qc, qr, qi, qm, nc, nr, ni, bm & 
+                                    ) bind(c)
     use micro_p3,       only: p3_init
     use micro_p3_utils, only: micro_p3_utils_init
 
@@ -71,6 +73,16 @@ contains
     real(kind=c_real), intent(inout) :: nc_nuceat_tend(pcols,pver)    ! liquid activation number tendency
     real(kind=c_real), intent(inout) :: qv_prev(pcols,pver)     ! prev_step qv
     real(kind=c_real), intent(inout) :: t_prev(pcols,pver)    ! prev-step T
+
+    real(kind=c_real), intent(inout) :: qv(pcols,pver)     ! 
+    real(kind=c_real), intent(inout) :: qc(pcols,pver)     ! 
+    real(kind=c_real), intent(inout) :: qr(pcols,pver)     ! 
+    real(kind=c_real), intent(inout) :: qi(pcols,pver)     ! 
+    real(kind=c_real), intent(inout) :: qm(pcols,pver)     ! 
+    real(kind=c_real), intent(inout) :: nc(pcols,pver)     ! 
+    real(kind=c_real), intent(inout) :: nr(pcols,pver)     ! 
+    real(kind=c_real), intent(inout) :: ni(pcols,pver)     ! 
+    real(kind=c_real), intent(inout) :: bm(pcols,pver)     ! 
 
     character(len=100) :: case_title
 
@@ -98,6 +110,19 @@ contains
     close(981)
     qv_prev(:,:) = q(:,:,1)
     t_prev(:,:) = T_atm(:,:)
+    do i = 1,ncol
+      do k = 1,nlev
+        qv(i,k) = q(i,k,1) !1.0e-4_rtype!state%q(:,:,1)
+        qc(i,k) = q(i,k,2) !1.0e-6_rtype!state%q(:,:,ixcldliq)
+        qi(i,k) = q(i,k,3) !1.0e-7_rtype!state%q(:,:,ixcldice)
+        nc(i,k) = q(i,k,4) !1.0e6_rtype!state%q(:,:,ixnumliq)
+        ni(i,k) = q(i,k,5) !1.0e5_rtype!state%q(:,:,ixnumice)
+        qr(i,k) = q(i,k,6) !1.0e-5_rtype!state%q(:,:,ixrain)
+        nr(i,k) = q(i,k,7) !1.0e5_rtype!state%q(:,:,ixnumrain)
+        qm(i,k) = q(i,k,8) !1.0e-8_rtype!state%q(:,:,ixcldrim) !Aaron, changed ixqm to ixcldrim to match Kai's code
+        bm(i,k) = q(i,k,9) !1.0e4_rtype!state%q(:,:,ixrimvol)
+      end do
+    end do
     
     masterproc = .false.
     call micro_p3_utils_init(cpair,rair,rh2o,rhoh2o,mwh2o,mwdry,gravit,latvap,latice, &
