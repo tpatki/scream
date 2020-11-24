@@ -321,6 +321,7 @@ void FieldRepository<RealType>::registration_ends () {
 
 template<typename RealType>
 void FieldRepository<RealType>::clean_up() {
+  // Note, if a test fails during this step it may be that there is a field that has the layout incorrectly defined.
   m_fields.clear();
   m_repo_state = RepoState::Clean;
 }

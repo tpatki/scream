@@ -1,6 +1,9 @@
 #include "physics/p3/p3_inputs_initializer.hpp"
 #include "physics/p3/scream_p3_interface.hpp"
 
+#include <sstream>
+#include <fstream>
+#include <string>
 #include <array>
 
 namespace scream
@@ -49,7 +52,7 @@ void P3InputsInitializer::initialize_fields ()
   // then we should have been asked to init 10 fields.
   int count = 0;
   count += m_fields.count("q");
-  count += m_fields.count("T");
+  count += m_fields.count("T_atm");
   count += m_fields.count("ast");
   count += m_fields.count("ni_activated");
   count += m_fields.count("nc_nuceat_tend");
@@ -73,36 +76,35 @@ void P3InputsInitializer::initialize_fields ()
   }
 
   EKAT_REQUIRE_MSG (count==19,
-    "Error! P3InputsInitializer is expected to init 'q','T','ast','ni_activated','nc_nuceat_tend','pmid','dp','zi','qv_prev','T_prev',.\n"
+    "Error! P3InputsInitializer is expected to init 'q','T_atm','ast','ni_activated','nc_nuceat_tend','pmid','dp','zi','qv_prev','T_prev',.\n"
     "       'qv', 'qc', 'qr', 'qi', 'qm', 'nc', 'nr', 'ni', 'bm'.\n"
     "       Only " + std::to_string(count) + " of those have been found.\n"
     "       Please, check the atmosphere processes you are using,"
     "       and make sure they agree on who's initializing each field.\n");
 
   // Get device views
-  auto d_q     = m_fields.at("q").get_view();
-  auto d_T     = m_fields.at("T").get_view();
-  auto d_ast   = m_fields.at("ast").get_view();
-  auto d_ni_activated  = m_fields.at("ni_activated").get_view();
-  auto d_nc_nuceat_tend = m_fields.at("nc_nuceat_tend").get_view();
-  auto d_pmid  = m_fields.at("pmid").get_view();
-  auto d_dpres  = m_fields.at("dp").get_view();
-  auto d_zi    = m_fields.at("zi").get_view();
-  auto d_qv_prev = m_fields.at("qv_prev").get_view();
-  auto d_t_prev  = m_fields.at("T_prev").get_view();
-  
-  auto d_qv    = m_fields.at("qv").get_view();
-  auto d_qc    = m_fields.at("qc").get_view();
-  auto d_qr    = m_fields.at("qr").get_view();
-  auto d_qi    = m_fields.at("qi").get_view();
-  auto d_qm    = m_fields.at("qm").get_view();
-  auto d_nc    = m_fields.at("nc").get_view();
-  auto d_nr    = m_fields.at("nr").get_view();
-  auto d_ni    = m_fields.at("ni").get_view();
-  auto d_bm    = m_fields.at("bm").get_view();
+  auto d_q     = m_fields.at("q").get_reshaped_view<Real**>();
+  auto d_T_atm = m_fields.at("T_atm").get_reshaped_view<Real**>();
+  auto d_ast   = m_fields.at("ast").get_reshaped_view<Real**>();
+  auto d_ni_activated   = m_fields.at("ni_activated").get_reshaped_view<Real**>();
+  auto d_nc_nuceat_tend = m_fields.at("nc_nuceat_tend").get_reshaped_view<Real**>();
+  auto d_pmid    = m_fields.at("pmid").get_reshaped_view<Real**>();
+  auto d_dpres   = m_fields.at("dp").get_reshaped_view<Real**>();
+  auto d_zi      = m_fields.at("zi").get_reshaped_view<Real**>();
+  auto d_qv_prev = m_fields.at("qv_prev").get_reshaped_view<Real**>();
+  auto d_t_prev  = m_fields.at("T_prev").get_reshaped_view<Real**>();
+  auto d_qv    = m_fields.at("qv").get_reshaped_view<Real**>();
+  auto d_qc    = m_fields.at("qc").get_reshaped_view<Real**>();
+  auto d_qr    = m_fields.at("qr").get_reshaped_view<Real**>();
+  auto d_qi    = m_fields.at("qi").get_reshaped_view<Real**>();
+  auto d_qm    = m_fields.at("qm").get_reshaped_view<Real**>();
+  auto d_nc    = m_fields.at("nc").get_reshaped_view<Real**>();
+  auto d_nr    = m_fields.at("nr").get_reshaped_view<Real**>();
+  auto d_ni    = m_fields.at("ni").get_reshaped_view<Real**>();
+  auto d_bm    = m_fields.at("bm").get_reshaped_view<Real**>();
   // Create host mirrors
   auto h_q     = Kokkos::create_mirror_view(d_q);
-  auto h_T     = Kokkos::create_mirror_view(d_T);
+  auto h_T_atm = Kokkos::create_mirror_view(d_T_atm);
   auto h_ast   = Kokkos::create_mirror_view(d_ast);
   auto h_ni_activated  = Kokkos::create_mirror_view(d_ni_activated);
   auto h_nc_nuceat_tend = Kokkos::create_mirror_view(d_nc_nuceat_tend);
@@ -123,7 +125,7 @@ void P3InputsInitializer::initialize_fields ()
   auto h_bm     = Kokkos::create_mirror_view(d_bm);
   // Get host mirros' raw pointers
   auto q     = h_q.data();
-  auto T_atm     = h_T.data();
+  auto T_atm     = h_T_atm.data();
   auto ast   = h_ast.data();
   auto ni_activated  = h_ni_activated.data();
   auto nc_nuceat_tend = h_nc_nuceat_tend.data();
@@ -146,9 +148,50 @@ void P3InputsInitializer::initialize_fields ()
   p3_standalone_init_f90 (q, T_atm, zi, pmid, dpres, ast, ni_activated, nc_nuceat_tend, qv_prev, t_prev,
                           qv, qc, qr, qi, qm, nc, nr, ni, bm);
 
+  std::string line_in;
+  std::ifstream infile("./data/p3_universal_constants.inp");
+  for (int ii=0;ii<3;ii++) { std::getline(infile, line_in); }  // Read header of data file
+  for (int i_lev=0;i_lev<73;i_lev++)
+  {
+    std::getline(infile, line_in);
+    std::vector<Real>   lineData;
+    std::stringstream  lineStream(line_in);
+    Real value;
+    // Read an integer at a time from the line
+    while(lineStream >> value)
+    {
+      // Add the integers from a line to a 1D array (vector)
+      lineData.push_back(value);
+    }
+    for (int i_col=0;i_col<32;i_col++)
+    {
+      if (i_lev<72) {
+        h_ast(i_col,i_lev)            = lineData[0];
+        h_ni_activated(i_col,i_lev)   = lineData[1];
+        h_nc_nuceat_tend(i_col,i_lev) = lineData[2];
+        h_pmid(i_col,i_lev)           = lineData[3];
+        h_zi(i_col,i_lev)             = lineData[4];
+        h_T_atm(i_col,i_lev)          = lineData[5];
+        h_qv(i_col,i_lev)             = lineData[6];
+        h_qc(i_col,i_lev)             = lineData[7];
+        h_qi(i_col,i_lev)             = lineData[8];
+        h_nc(i_col,i_lev)             = lineData[9];
+        h_ni(i_col,i_lev)             = lineData[10];
+        h_qr(i_col,i_lev)             = lineData[11];
+        h_nr(i_col,i_lev)             = lineData[12];
+        h_qm(i_col,i_lev)             = lineData[13];
+        h_bm(i_col,i_lev)             = lineData[14];
+        h_dpres(i_col,i_lev)          = lineData[15];
+      } else {
+        h_zi(i_col,i_lev)             = lineData[0];
+      }
+    }
+  }
+  
+
   // Deep copy back to device
   Kokkos::deep_copy(d_q,h_q);
-  Kokkos::deep_copy(d_T,h_T);
+  Kokkos::deep_copy(d_T_atm,h_T_atm);
   Kokkos::deep_copy(d_ast,h_ast);
   Kokkos::deep_copy(d_ni_activated,h_ni_activated);
   Kokkos::deep_copy(d_nc_nuceat_tend,h_nc_nuceat_tend);
