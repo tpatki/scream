@@ -7,7 +7,7 @@
 #include "mo_gas_concentrations.h"
 #include "mo_fluxes.h"
 #include "mo_cloud_optics.h"
-#include "FortranIntrinsics.h"
+#include "Intrinsics.h"
 namespace {
 
     template <class T> double arrmin(T &arr) {
