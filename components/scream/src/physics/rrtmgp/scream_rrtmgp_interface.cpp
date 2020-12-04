@@ -93,7 +93,13 @@ namespace scream {
             initialized = true;
         }
 
-        void rrtmgp_finalize() {}
+        void rrtmgp_finalize() {
+            initialized = false;
+            k_dist_sw.finalize();
+            k_dist_lw.finalize();
+            cloud_optics_sw.finalize(); //~CloudOptics();
+            cloud_optics_lw.finalize(); //~CloudOptics();
+        }
 
         void rrtmgp_main(
                 real2d &p_lay, real2d &t_lay, real2d &p_lev, real2d &t_lev, 
