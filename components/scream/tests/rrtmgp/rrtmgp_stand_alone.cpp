@@ -15,61 +15,35 @@
 #include "mo_garand_atmos_io.h"
 #include "mo_fluxes.h"
 #include "mo_cloud_optics.h"
-#include "FortranIntrinsics.h"
+#include "Intrinsics.h"
 #include "rrtmgp_test_utils.hpp"
 
 /*
- * This will eventually contain a standalone test for the RRTMGP driver
- * As of now, it is just a shell that at least requires RRTMGP to be built
- * with the SCREAM build and test system.
+ * Run standalone test problem for RRTMGP. Two tests are run, one that uses
+ * just the RRTMGP interface, one that runs the test through the SCREAM AD to
+ * test the coupling with SCREAM. These should be produce identical results,
+ * and the results from both tests are each compared with the reference fluxes
+ * saved in the input file.
  */
+
+// Input file that contains example atmosphere and reference fluxes
+std::string inputfile = "./data/rrtmgp-allsky.nc";
 
 namespace scream {
 
     // Add the RRTMGP stand-alone driver test
     TEST_CASE("rrtmgp_stand_alone", "") {
-        using namespace scream;
-        using namespace scream::control;
 
-        constexpr int num_iters = 1;
-        
-        /* 
-         * Setup driver stuff
-         */
-
-        // Load ad parameter list
-        std::string fname = "input.yaml";
-        ekat::ParameterList ad_params("Atmosphere Driver");
-        REQUIRE_NOTHROW ( parse_yaml_file(fname,ad_params) );
-
-        // Create a MPI communicator
-        ekat::Comm atm_comm (MPI_COMM_WORLD);
-
-        // Need to register products in the factory *before* we create any atm process or grids manager.,
-        auto& proc_factory = AtmosphereProcessFactory::instance();
-        auto& gm_factory = GridsManagerFactory::instance();
-        proc_factory.register_product("RRTMGP",&create_atmosphere_process<RRTMGPRadiation>);
-        gm_factory.register_product("Physics Only",&physics::create_physics_only_grids_manager);
-
-        // Create the grids manager
-        auto& gm_params = ad_params.sublist("Grids Manager");
-        const std::string& gm_type = gm_params.get<std::string>("Type");
-        auto gm = GridsManagerFactory::instance().create(gm_type,atm_comm,gm_params);
-
-        // Create the driver
-        AtmosphereDriver ad;
-
-        // Dummy timestamp
-        util::TimeStamp time (0,0,0,0);
-
-        // Setup for standalone (dummy) problem
+         // Setup for standalone (dummy) problem
 
         // Initialize yakl
         yakl::init();
+
+        // Initialize the RRTMGP interface; this will read in the k-distribution
+        // data that contains information about absorption coefficients for gases
         rrtmgp::rrtmgp_initialize();
 
         // Get reference fluxes from input file; do this here so we can get ncol dimension
-        std::string inputfile = "./data/rrtmgp-allsky.nc";
         real2d sw_flux_up_ref;
         real2d sw_flux_dn_ref;
         real2d sw_flux_dn_dir_ref;
@@ -128,7 +102,6 @@ namespace scream {
             sw_flux_up, sw_flux_dn, sw_flux_dn_dir,
             lw_flux_up, lw_flux_dn
         );
-        rrtmgp::rrtmgp_finalize();
 
         // Check values
         REQUIRE(rrtmgpTest::all_equals(sw_flux_up_ref    , sw_flux_up    ));
@@ -137,12 +110,94 @@ namespace scream {
         REQUIRE(rrtmgpTest::all_equals(lw_flux_up_ref    , lw_flux_up    ));
         REQUIRE(rrtmgpTest::all_equals(lw_flux_dn_ref    , lw_flux_dn    ));
 
+        // Clean up from test; this is probably not necessary, these things
+        // should be deallocated when they fall out of scope, but we should be
+        // good citizens and clean up our mess.
+        p_lay.deallocate();
+        t_lay.deallocate();
+        p_lev.deallocate();
+        t_lev.deallocate();
+        col_dry.deallocate();
+        sfc_alb_dir.deallocate();
+        sfc_alb_dif.deallocate();
+        mu0.deallocate();
+        lwp.deallocate();
+        iwp.deallocate();
+        rel.deallocate();
+        rei.deallocate();
+        sw_flux_up_ref.deallocate();
+        sw_flux_dn_ref.deallocate();
+        sw_flux_dn_dir_ref.deallocate();
+        lw_flux_up_ref.deallocate();
+        lw_flux_dn_ref.deallocate();
+        sw_flux_up.deallocate();
+        sw_flux_dn.deallocate();
+        sw_flux_dn_dir.deallocate();
+        lw_flux_up.deallocate();
+        lw_flux_dn.deallocate();
+
+        gas_concs.reset();
+        rrtmgp::rrtmgp_finalize();
+        yakl::finalize();
+
+        // Make sure we exit cleanly
+        REQUIRE(true);
+    }
+        
+    /* 
+     * Run standalone test through SCREAM driver this time
+     */
+    TEST_CASE("rrtmgp_scream_stand_alone", "") {
+        using namespace scream;
+        using namespace scream::control;
+
+        // Initialize yakl
+        yakl::init();
+
+        // Read reference fluxes from input file
+        real2d sw_flux_up_ref;
+        real2d sw_flux_dn_ref;
+        real2d sw_flux_dn_dir_ref;
+        real2d lw_flux_up_ref;
+        real2d lw_flux_dn_ref;
+        rrtmgpTest::read_fluxes(inputfile, sw_flux_up_ref, sw_flux_dn_ref, sw_flux_dn_dir_ref, lw_flux_up_ref, lw_flux_dn_ref );
+
+        // Get dimension sizes
+        int ncol = sw_flux_up_ref.dimension[0];
+        int nlev = sw_flux_up_ref.dimension[1];
+        int nlay = nlev - 1;
+
+        // Load ad parameter list
+        std::string fname = "input.yaml";
+        ekat::ParameterList ad_params("Atmosphere Driver");
+        REQUIRE_NOTHROW ( parse_yaml_file(fname,ad_params) );
+
+        // Create a MPI communicator
+        ekat::Comm atm_comm (MPI_COMM_WORLD);
+
+        // Need to register products in the factory *before* we create any atm process or grids manager.,
+        auto& proc_factory = AtmosphereProcessFactory::instance();
+        auto& gm_factory = GridsManagerFactory::instance();
+        proc_factory.register_product("RRTMGP",&create_atmosphere_process<RRTMGPRadiation>);
+        gm_factory.register_product("Physics Only",&physics::create_physics_only_grids_manager);
+
+        // Create the grids manager
+        auto& gm_params = ad_params.sublist("Grids Manager");
+        const std::string& gm_type = gm_params.get<std::string>("Type");
+        auto gm = GridsManagerFactory::instance().create(gm_type,atm_comm,gm_params);
+
+        // Create the driver
+        AtmosphereDriver ad;
+
+        // Dummy timestamp
+        util::TimeStamp time (0,0,0,0);
 
         // Initialize the driver, run the driver, cleanup
         ad.initialize(atm_comm, ad_params, time);
         ad.run(300.0);
 
-        // Check values; need to get fluxes from AD now
+        // Check values; need to get fluxes from field manager first
+        // The AD should have called RRTMGP to calculate these values in the ad.run() call
         auto& field_repo = ad.get_field_repo();
         auto& d_sw_flux_up = field_repo.get_field("sw_flux_up", "Physics").get_view();
         auto& d_sw_flux_dn = field_repo.get_field("sw_flux_dn", "Physics").get_view();
@@ -154,13 +209,27 @@ namespace scream {
         yakl::Array<double,2,memDevice,yakl::styleFortran> sw_flux_dn_dir_test("sw_flux_dn_dir_test", d_sw_flux_dn_dir.data(), ncol, nlay+1);
         yakl::Array<double,2,memDevice,yakl::styleFortran> lw_flux_up_test("lw_flux_up_test", d_lw_flux_up.data(), ncol, nlay+1);
         yakl::Array<double,2,memDevice,yakl::styleFortran> lw_flux_dn_test("lw_flux_dn_test", d_lw_flux_dn.data(), ncol, nlay+1);
+
+        // Make sure fluxes from field manager that were calculated in AD call of RRTMGP match reference fluxes from input file
         REQUIRE(rrtmgpTest::all_equals(sw_flux_up_ref    , sw_flux_up_test  ));
         REQUIRE(rrtmgpTest::all_equals(sw_flux_dn_ref    , sw_flux_dn_test    ));
         REQUIRE(rrtmgpTest::all_equals(sw_flux_dn_dir_ref, sw_flux_dn_dir_test));
         REQUIRE(rrtmgpTest::all_equals(lw_flux_up_ref    , lw_flux_up_test    ));
         REQUIRE(rrtmgpTest::all_equals(lw_flux_dn_ref    , lw_flux_dn_test    ));
 
+        // Clean up after ourselves
+        sw_flux_up_ref.deallocate();
+        sw_flux_dn_ref.deallocate();
+        sw_flux_dn_dir_ref.deallocate();
+        lw_flux_up_ref.deallocate();
+        lw_flux_dn_ref.deallocate();
+        sw_flux_up_test.deallocate();
+        sw_flux_dn_test.deallocate();
+        sw_flux_dn_dir_test.deallocate();
+        lw_flux_up_test.deallocate();
+        lw_flux_dn_test.deallocate();
         ad.finalize();
+        yakl::finalize();
 
         // If we got this far, we were able to run the code through the AD
         REQUIRE(true);
