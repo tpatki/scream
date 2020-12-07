@@ -1,10 +1,14 @@
-#include "physics/p3/scream_p3_interface.hpp"
 #include "physics/p3/atmosphere_microphysics.hpp"
 #include "physics/p3/p3_inputs_initializer.hpp"
+#include "physics/p3/p3_f90.hpp"
+#include "physics/p3/p3_main_impl.hpp"
 
 #include "physics/share/physics_constants.hpp"
 
 #include "ekat/ekat_assert.hpp"
+#include "ekat/ekat_pack_kokkos.hpp"
+#include "ekat/ekat_pack.hpp"
+#include "ekat/kokkos/ekat_kokkos_utils.hpp"
 
 #include <array>
 
@@ -150,10 +154,12 @@ void P3Microphysics::set_grids(const std::shared_ptr<const GridsManager> grids_m
 // =========================================================================================
 void P3Microphysics::initialize_impl (const util::TimeStamp& t0)
 {
+  using namespace p3;
   m_current_ts = t0;
 
   // Call f90 routine
-  p3_init_f90 (m_num_cols,m_num_levs);
+//  p3_init_f90 (m_num_cols,m_num_levs);
+  p3_init();
 
   // We may have to init some fields from within P3. This can be the case in a P3 standalone run.
   // Some options:
@@ -203,6 +209,7 @@ void P3Microphysics::initialize_impl (const util::TimeStamp& t0)
 // =========================================================================================
 void P3Microphysics::run_impl (const Real dt)
 {
+  using namespace p3;
   // std::array<const char*, num_views> view_names = {"q", "FQ", "T", "zi", "pmid", "dpres", "ast", "ni_activated", "nc_nuceat_tend"};
 
   std::vector<const Real*> in;
@@ -220,22 +227,27 @@ void P3Microphysics::run_impl (const Real dt)
   // TODO: Some of these views should really just be input.  but at the moment I can't figure out
   // how to pass an input only view to a subroutine without getting a build error.  So I've made
   // every field an input/output for the time being until I can cross this bridge - Aaron
+  using P3F  = Functions<Real, DefaultDevice>;
   using PC = scream::physics::Constants<Real>;
-  auto pmid   = m_p3_fields_out["pmid"].get_reshaped_view<Real**>();
-  auto T_atm  = m_p3_fields_out["T_atm"].get_reshaped_view<Real**>();
-  auto zi     = m_p3_fields_out["zi"].get_reshaped_view<Real**>();
-  auto exner  = m_p3_fields_out["exner"].get_reshaped_view<Real**>();
-  auto dz     = m_p3_fields_out["dz"].get_reshaped_view<Real**>();
-  auto th_atm = m_p3_fields_out["th_atm"].get_reshaped_view<Real**>();
-  auto mu_c   = m_p3_fields_out["mu_c"].get_reshaped_view<Real**>();
-  auto lamc   = m_p3_fields_out["lamc"].get_reshaped_view<Real**>();
-  auto cld_frac_i = m_p3_fields_out["cld_frac_i"].get_reshaped_view<Real**>();
-  auto cld_frac_r = m_p3_fields_out["cld_frac_r"].get_reshaped_view<Real**>();
-  auto cld_frac_l = m_p3_fields_out["cld_frac_l"].get_reshaped_view<Real**>();
-  auto ast   = m_p3_fields_out["ast"].get_reshaped_view<Real**>();
-  auto qr    = m_p3_fields_out["qr"].get_reshaped_view<Real**>();
-  auto qi    = m_p3_fields_out["qi"].get_reshaped_view<Real**>();
-  auto inv_qc_relvar = m_p3_fields_out["inv_qc_relvar"].get_reshaped_view<Real**>();
+//  using namespace ekat::Pack;
+  using Spack  = typename P3F::Spack;
+  using Pack   = typename ekat::Pack<Real, 1>;
+
+  auto pmid   = m_p3_fields_out["pmid"].get_reshaped_view<Pack**>();
+  auto T_atm  = m_p3_fields_out["T_atm"].get_reshaped_view<Pack**>();
+  auto zi     = m_p3_fields_out["zi"].get_reshaped_view<Pack**>();
+  auto exner  = m_p3_fields_out["exner"].get_reshaped_view<Pack**>();
+  auto dz     = m_p3_fields_out["dz"].get_reshaped_view<Pack**>();
+  auto th_atm = m_p3_fields_out["th_atm"].get_reshaped_view<Pack**>();
+  auto mu_c   = m_p3_fields_out["mu_c"].get_reshaped_view<Pack**>();
+  auto lamc   = m_p3_fields_out["lamc"].get_reshaped_view<Pack**>();
+  auto cld_frac_i = m_p3_fields_out["cld_frac_i"].get_reshaped_view<Pack**>();
+  auto cld_frac_r = m_p3_fields_out["cld_frac_r"].get_reshaped_view<Pack**>();
+  auto cld_frac_l = m_p3_fields_out["cld_frac_l"].get_reshaped_view<Pack**>();
+  auto ast   = m_p3_fields_out["ast"].get_reshaped_view<Pack**>();
+  auto qr    = m_p3_fields_out["qr"].get_reshaped_view<Pack**>();
+  auto qi    = m_p3_fields_out["qi"].get_reshaped_view<Pack**>();
+  auto inv_qc_relvar = m_p3_fields_out["inv_qc_relvar"].get_reshaped_view<Pack**>();
   Real mucon = 5.3;
   Real dcon  = 25.0 * pow(10.0,-6);
   Real qsmall = pow(10.0,-14); 
@@ -251,70 +263,174 @@ void P3Microphysics::run_impl (const Real dt)
       lamc(i_col,i_lev)   = (mucon - 1.0)/dcon;
       inv_qc_relvar(i_col,i_lev) = 1.0;
       // cloud fraction - TODO, this should be made into a universal function
-      cld_frac_i(i_col,i_lev) = std::min(ast(i_col,i_lev),mincld);
-      cld_frac_l(i_col,i_lev) = std::min(ast(i_col,i_lev),mincld);
-      cld_frac_r(i_col,i_lev) = std::min(ast(i_col,i_lev),mincld);
+      cld_frac_i(i_col,i_lev) = 1.0; //std::min(ast(i_col,i_lev),mincld);
+      cld_frac_l(i_col,i_lev) = 1.0; //std::min(ast(i_col,i_lev),mincld);
+      cld_frac_r(i_col,i_lev) = 1.0; //std::min(ast(i_col,i_lev),mincld);
       // Hard-code as "max_overlap" for now.  TODO: make more general, this can certainly be done when this is made a unverisal function.
-      if (i_lev != 0)
-      {
-        if (qr(i_col,i_lev-1)>=qsmall or qi(i_col,i_lev-1)>=qsmall)
-        {
-          cld_frac_r(i_col,i_lev) = std::max(ast(i_col,i_lev-1),cld_frac_r(i_col,i_lev));
-        }
-      }
+      //if (i_lev != 0)
+      //{
+      //  if (qr(i_col,i_lev-1)>=qsmall or qi(i_col,i_lev-1)>=qsmall)
+      //  {
+      //    cld_frac_r(i_col,i_lev) = 1.0; //std::max(ast(i_col,i_lev-1),cld_frac_r(i_col,i_lev));
+      //  }
+      //}
     }
   }
+  auto qc    = m_p3_fields_out["qc"].get_reshaped_view<Pack**>();
+  auto qm    = m_p3_fields_out["qm"].get_reshaped_view<Pack**>();
+  auto qv    = m_p3_fields_out["qv"].get_reshaped_view<Pack**>();
+  auto nr    = m_p3_fields_out["nr"].get_reshaped_view<Pack**>();
+  auto ni    = m_p3_fields_out["ni"].get_reshaped_view<Pack**>();
+  auto nc    = m_p3_fields_out["nc"].get_reshaped_view<Pack**>();
+  auto bm    = m_p3_fields_out["bm"].get_reshaped_view<Pack**>();
 
-  // Call f90 routine
-  Real elapsed_s;
+  auto nc_nuceat_tend  = m_p3_fields_out["nc_nuceat_tend"].get_reshaped_view<Pack**>();
+  auto nccn_prescribed = m_p3_fields_out["nccn_prescribed"].get_reshaped_view<Pack**>();
+  auto ni_activated    = m_p3_fields_out["ni_activated"].get_reshaped_view<Pack**>();
+  auto dp              = m_p3_fields_out["dp"].get_reshaped_view<Pack**>();
+  auto qv_prev         = m_p3_fields_out["qv_prev"].get_reshaped_view<Pack**>();
+  auto T_prev          = m_p3_fields_out["T_prev"].get_reshaped_view<Pack**>();
+
+  auto qv2qi_depos_tend   = m_p3_fields_out["qv2qi_depos_tend"].get_reshaped_view<Pack**>();
+  auto diag_eff_radius_qc = m_p3_fields_out["diag_eff_radius_qc"].get_reshaped_view<Pack**>();
+  auto diag_eff_radius_qi = m_p3_fields_out["diag_eff_radius_qi"].get_reshaped_view<Pack**>();
+  auto rho_qi             = m_p3_fields_out["rho_qi"].get_reshaped_view<Pack**>();
+  auto precip_total_tend  = m_p3_fields_out["precip_total_tend"].get_reshaped_view<Pack**>();
+  auto nevapr             = m_p3_fields_out["nevapr"].get_reshaped_view<Pack**>();
+  auto qr_evap_tend       = m_p3_fields_out["qr_evap_tend"].get_reshaped_view<Pack**>();
+  auto precip_liq_surf    = m_p3_fields_out["precip_liq_surf"].get_view();
+  auto precip_ice_surf    = m_p3_fields_out["precip_ice_surf"].get_view();
+  auto precip_liq_flux    = m_p3_fields_out["precip_liq_flux"].get_reshaped_view<Pack**>();
+  auto precip_ice_flux    = m_p3_fields_out["precip_ice_flux"].get_reshaped_view<Pack**>();
+
+  using sview_2d   = typename KokkosTypes<DefaultDevice>::template view_2d<Real>;
+  sview_2d col_location("col_location", m_num_cols, 3);
+
+
+  auto liq_ice_exchange = m_p3_fields_out["liq_ice_exchange"].get_reshaped_view<Pack**>();
+  auto vap_liq_exchange = m_p3_fields_out["vap_liq_exchange"].get_reshaped_view<Pack**>();
+  auto vap_ice_exchange = m_p3_fields_out["vap_ice_exchange"].get_reshaped_view<Pack**>();
+  // Pack our data into structs and ship it off to p3_main.
   m_it++;
-  p3_main_c2f(
-         m_raw_ptrs_out["qc"]                ,
-         m_raw_ptrs_out["nc"]                ,
-         m_raw_ptrs_out["qr"]                ,
-         m_raw_ptrs_out["nr"]                ,
-         m_raw_ptrs_out["th_atm"]            ,
-         m_raw_ptrs_out["qv"]                ,
-         dt,             
-         m_raw_ptrs_out["qi"]                ,
-         m_raw_ptrs_out["qm"]                ,
-         m_raw_ptrs_out["ni"]                ,
-         m_raw_ptrs_out["bm"]                ,
-         m_raw_ptrs_out["pmid"]              ,
-         m_raw_ptrs_out["dz"]                ,
-         m_raw_ptrs_out["nc_nuceat_tend"]    ,
-         m_raw_ptrs_out["nccn_prescribed"]   ,
-         m_raw_ptrs_out["ni_activated"]      ,
-         m_raw_ptrs_out["inv_qc_relvar"]     ,
-         m_it,                
-         m_raw_ptrs_out["precip_liq_surf"]   ,
-         m_raw_ptrs_out["precip_ice_surf"]   ,
-         1,               
-         m_num_cols,               
-         1,               
-         m_num_levs,               
-         m_raw_ptrs_out["diag_eff_radius_qc"]               ,
-         m_raw_ptrs_out["diag_eff_radius_qi"]               ,
-         m_raw_ptrs_out["rho_qi"]            ,
-         m_raw_ptrs_out["dp"]                ,
-         m_raw_ptrs_out["exner"]             ,
-         m_raw_ptrs_out["qv2qi_depos_tend"]  ,
-         m_raw_ptrs_out["precip_total_tend"] ,
-         m_raw_ptrs_out["nevapr"]            ,
-         m_raw_ptrs_out["qr_evap_tend"]      ,
-         m_raw_ptrs_out["precip_liq_flux"]   ,
-         m_raw_ptrs_out["precip_ice_flux"]   ,
-         m_raw_ptrs_out["cld_frac_r"]        ,
-         m_raw_ptrs_out["cld_frac_l"]        ,
-         m_raw_ptrs_out["cld_frac_i"]        ,
-         m_raw_ptrs_out["mu_c"]                ,
-         m_raw_ptrs_out["lamc"]           ,
-         m_raw_ptrs_out["liq_ice_exchange"]  ,
-         m_raw_ptrs_out["vap_liq_exchange"]  ,
-         m_raw_ptrs_out["vap_ice_exchange"]  ,
-         m_raw_ptrs_out["qv_prev"]           ,
-         m_raw_ptrs_out["T_prev"]            ,
-         elapsed_s); 
+  P3F::P3PrognosticState prog_state{
+                                    qc,
+                                    nc,
+                                    qr,
+                                    nr,
+                                    qi,
+                                    qm,
+                                    ni,
+                                    bm,
+                                    qv,
+                                    th_atm
+                                   };
+  P3F::P3DiagnosticInputs diag_inputs{
+    nc_nuceat_tend,
+    nccn_prescribed,
+    ni_activated,
+    inv_qc_relvar,
+    cld_frac_i,
+    cld_frac_l,
+    cld_frac_r,
+    pmid,
+    dz,
+    dp,
+    exner,
+    qv_prev,
+    T_prev};
+  P3F::P3DiagnosticOutputs diag_outputs{
+    mu_c,
+    lamc,
+    qv2qi_depos_tend,
+    precip_liq_surf,
+    precip_ice_surf,
+    diag_eff_radius_qc,
+    diag_eff_radius_qi,
+    rho_qi,
+    precip_total_tend,
+    nevapr,
+    qr_evap_tend,
+    precip_liq_flux,
+    precip_ice_flux};
+  P3F::P3Infrastructure infrastructure{dt, m_it, 1, m_num_cols, 1, m_num_levs,
+                                       true, true, col_location};
+  P3F::P3HistoryOnly history_only{
+    liq_ice_exchange,
+    vap_liq_exchange,
+    vap_ice_exchange};
+
+  using P3F  = Functions<Real, DefaultDevice>;
+ 
+  auto q_before = qv(0,0);
+  q_before = 0.0;
+  for (int i_col=0;i_col<m_num_cols;i_col++)
+  {
+    for (int i_lev=0;i_lev<m_num_levs;i_lev++)
+    {
+      q_before = q_before + (qv(i_col,i_lev) + qc(i_col,i_lev) + qr(i_col,i_lev) + qi(i_col,i_lev) + qm(i_col,i_lev));
+    }
+  }
+  auto elapsed_microsec = P3F::p3_main(prog_state, diag_inputs, diag_outputs, infrastructure,
+                                       history_only, m_num_cols, m_num_levs);
+  auto q_after = qv(0,0);
+  q_after = 0.0; 
+  for (int i_col=0;i_col<m_num_cols;i_col++)
+  {
+    for (int i_lev=0;i_lev<m_num_levs;i_lev++)
+    {
+      q_after = q_after + (qv(i_col,i_lev) + qc(i_col,i_lev) + qr(i_col,i_lev) + qi(i_col,i_lev) + qm(i_col,i_lev));
+    }
+  }
+  printf("ASD = q_diff:  %f, %f, %f\n",q_before,q_after,q_after-q_before);
+//  // Call f90 routine
+//  Real elapsed_s;
+//  p3_main_c2f(
+//         m_raw_ptrs_out["qc"]                ,
+//         m_raw_ptrs_out["nc"]                ,
+//         m_raw_ptrs_out["qr"]                ,
+//         m_raw_ptrs_out["nr"]                ,
+//         m_raw_ptrs_out["th_atm"]            ,
+//         m_raw_ptrs_out["qv"]                ,
+//         dt,             
+//         m_raw_ptrs_out["qi"]                ,
+//         m_raw_ptrs_out["qm"]                ,
+//         m_raw_ptrs_out["ni"]                ,
+//         m_raw_ptrs_out["bm"]                ,
+//         m_raw_ptrs_out["pmid"]              ,
+//         m_raw_ptrs_out["dz"]                ,
+//         m_raw_ptrs_out["nc_nuceat_tend"]    ,
+//         m_raw_ptrs_out["nccn_prescribed"]   ,
+//         m_raw_ptrs_out["ni_activated"]      ,
+//         m_raw_ptrs_out["inv_qc_relvar"]     ,
+//         m_it,                
+//         m_raw_ptrs_out["precip_liq_surf"]   ,
+//         m_raw_ptrs_out["precip_ice_surf"]   ,
+//         1,               
+//         m_num_cols,               
+//         1,               
+//         m_num_levs,               
+//         m_raw_ptrs_out["diag_eff_radius_qc"]               ,
+//         m_raw_ptrs_out["diag_eff_radius_qi"]               ,
+//         m_raw_ptrs_out["rho_qi"]            ,
+//         m_raw_ptrs_out["dp"]                ,
+//         m_raw_ptrs_out["exner"]             ,
+//         m_raw_ptrs_out["qv2qi_depos_tend"]  ,
+//         m_raw_ptrs_out["precip_total_tend"] ,
+//         m_raw_ptrs_out["nevapr"]            ,
+//         m_raw_ptrs_out["qr_evap_tend"]      ,
+//         m_raw_ptrs_out["precip_liq_flux"]   ,
+//         m_raw_ptrs_out["precip_ice_flux"]   ,
+//         m_raw_ptrs_out["cld_frac_r"]        ,
+//         m_raw_ptrs_out["cld_frac_l"]        ,
+//         m_raw_ptrs_out["cld_frac_i"]        ,
+//         m_raw_ptrs_out["mu_c"]                ,
+//         m_raw_ptrs_out["lamc"]           ,
+//         m_raw_ptrs_out["liq_ice_exchange"]  ,
+//         m_raw_ptrs_out["vap_liq_exchange"]  ,
+//         m_raw_ptrs_out["vap_ice_exchange"]  ,
+//         m_raw_ptrs_out["qv_prev"]           ,
+//         m_raw_ptrs_out["T_prev"]            ,
+//         elapsed_s); 
 //  p3_main_f90 (dt, 
 //               m_raw_ptrs_in["zi"], 
 //               m_raw_ptrs_in["pmid"], 
@@ -348,7 +464,7 @@ void P3Microphysics::run_impl (const Real dt)
 // =========================================================================================
 void P3Microphysics::finalize_impl()
 {
-  p3_finalize_f90 ();
+//  p3_finalize_f90 ();
 }
 
 // =========================================================================================

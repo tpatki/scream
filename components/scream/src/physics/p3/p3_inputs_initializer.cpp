@@ -1,5 +1,4 @@
 #include "physics/p3/p3_inputs_initializer.hpp"
-#include "physics/p3/scream_p3_interface.hpp"
 
 #include <sstream>
 #include <fstream>
@@ -145,8 +144,8 @@ void P3InputsInitializer::initialize_fields ()
   auto ni = h_ni.data();
   auto bm = h_bm.data();
   // Call f90 routine
-  p3_standalone_init_f90 (q, T_atm, zi, pmid, dpres, ast, ni_activated, nc_nuceat_tend, qv_prev, t_prev,
-                          qv, qc, qr, qi, qm, nc, nr, ni, bm);
+//  p3_standalone_init_f90 (q, T_atm, zi, pmid, dpres, ast, ni_activated, nc_nuceat_tend, qv_prev, t_prev,
+//                          qv, qc, qr, qi, qm, nc, nr, ni, bm);
 
   std::string line_in;
   std::ifstream infile("./data/p3_universal_constants.inp");
