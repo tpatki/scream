@@ -266,6 +266,9 @@ void P3Microphysics::run_impl (const Real dt)
   using MemberType = typename P3F::MemberType;
   using ExeSpace   = typename KT::ExeSpace;
 
+  Kokkos::deep_copy(mu_c,Spack(mucon));
+  Kokkos::deep_copy(lamc,Spack( (mucon-1.0)/dcon ));
+
   const Int nk_pack = ekat::npack<Spack>(m_num_levs);
   const auto policy = ekat::ExeSpaceUtils<ExeSpace>::get_default_team_policy(m_num_cols, nk_pack);
   Kokkos::parallel_for(
@@ -286,17 +289,12 @@ void P3Microphysics::run_impl (const Real dt)
     const auto ocld_frac_r = ekat::subview(cld_frac_r,i);
     const auto oqr  = ekat::subview(qr,i);
     const auto oqi  = ekat::subview(qi,i);
-    const auto omu_c  = ekat::subview(mu_c,i);
-    const auto olamc  = ekat::subview(lamc,i);
-    
+   
     Kokkos::parallel_for(
       Kokkos::TeamThreadRange(team, nk_pack), [&] (Int k) {
 
       const auto range_pack = ekat::range<IntSmallPack>(k*Spack::n);
       const auto range_mask = range_pack < m_num_levs;
-
-      omu_c(k) = mucon;
-      olamc(k) = (mucon - 1.0)/dcon;
 
       oexner(k)  = physics::get_exner(opmid(k),range_mask);
       oth_atm(k) = physics::T_to_th(oT_atm(k),oexner(k),range_mask);
