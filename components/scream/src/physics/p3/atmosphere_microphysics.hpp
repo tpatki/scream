@@ -64,10 +64,6 @@ protected:
   void set_required_field_impl (const Field<const Real>& f);
   void set_computed_field_impl (const Field<      Real>& f);
 
-  // Internal Helper functions
-  void get_cloud_fraction(const Int num_lev, const Real* ast, const Real* qi, const Real* qr, Real* cld_frac_l, Real* cld_frac_i, Real* cld_frac_r);
-
-
   std::set<FieldIdentifier> m_required_fields;
   std::set<FieldIdentifier> m_computed_fields;
 

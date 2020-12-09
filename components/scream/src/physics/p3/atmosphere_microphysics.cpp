@@ -4,6 +4,8 @@
 #include "physics/p3/p3_main_impl.hpp"
 
 #include "physics/share/physics_constants.hpp"
+#include "physics/share/physics_functions.hpp" // also for ETI not on GPUs
+#include "physics/share/physics_universal_impl.hpp"
 
 #include "ekat/ekat_assert.hpp"
 #include "ekat/ekat_pack_kokkos.hpp"
@@ -172,9 +174,12 @@ void P3Microphysics::run_impl (const Real dt)
   using namespace p3;
   using P3F      = Functions<Real, DefaultDevice>;
   using PC       = scream::physics::Constants<Real>;
+  using physics = scream::physics::Functions<Real, DefaultDevice>;
   using Spack    = typename P3F::Spack;
   using Pack     = typename ekat::Pack<Real, Spack::n>;
   using cPack    = typename ekat::Pack<Real, Spack::n>;
+  using IntSmallPack = typename ekat::Pack<Int, Spack::n>;
+
   using view_1d  = typename P3F::view_1d<Real>;
   using view_2d  = typename P3F::view_2d<Spack>;
   using sview_2d = typename KokkosTypes<DefaultDevice>::template view_2d<Real>;
@@ -190,8 +195,6 @@ void P3Microphysics::run_impl (const Real dt)
     Kokkos::deep_copy(m_p3_host_views_out.at(it.first),it.second.get_view());
   }
 
-  // Deal with local arrays that define inputs to p3_main
- 
   // --Prognostic State Variables: 
   auto qc     = m_p3_fields_out["qc"].get_reshaped_view<Pack**>();
   auto nc     = m_p3_fields_out["nc"].get_reshaped_view<Pack**>();
@@ -258,27 +261,58 @@ void P3Microphysics::run_impl (const Real dt)
   Real qsmall = pow(10.0,-14); 
   Real mincld = 0.0001;  // TODO: These should be stored somewhere as more universal constants.  Or maybe in the P3 class hpp
 
-  // Setup local variables to be passed to P3
-  for (int i_col=0;i_col<m_num_cols;i_col++)
-  {
-    for (int i_lev=0;i_lev<m_num_levs;i_lev++)
-    {
-      exner(i_col,i_lev)  = 1.0/( pow( pmid(i_col,i_lev)*pow(10.0,-5), PC::RD*PC::INV_CP ) );
-      th_atm(i_col,i_lev) = T_atm(i_col,i_lev) * exner(i_col,i_lev);
-      dz(i_col,i_lev)     = zi(i_col,i_lev)-zi(i_col,i_lev+1);
-      mu_c(i_col,i_lev)   = mucon;
-      lamc(i_col,i_lev)   = (mucon - 1.0)/dcon;
-      // cloud fraction - TODO, this should be made into a universal function
-      cld_frac_i(i_col,i_lev) = ( ekat::max(ast(i_col,i_lev),mincld) ); 
-      cld_frac_l(i_col,i_lev) = ( ekat::max(ast(i_col,i_lev),mincld) );
-      cld_frac_r(i_col,i_lev) = ( ekat::max(ast(i_col,i_lev),mincld) );
-      // Hard-code as "max_overlap" for now.  TODO: make more general, this can certainly be done when this is made a unverisal function.
-      if (i_lev != 0)
+  // Use universal physics functions to gather important local data:
+  using KT         = typename P3F::KT;
+  using MemberType = typename P3F::MemberType;
+  using ExeSpace   = typename KT::ExeSpace;
+
+  const Int nk_pack = ekat::npack<Spack>(m_num_levs);
+  const auto policy = ekat::ExeSpaceUtils<ExeSpace>::get_default_team_policy(m_num_cols, nk_pack);
+  Kokkos::parallel_for(
+    "p3 local values",
+    policy,
+    KOKKOS_LAMBDA(const MemberType& team) {
+    
+    const Int i = team.league_rank();
+    const auto oexner = ekat::subview(exner,i);
+    const auto opmid  = ekat::subview(pmid,i);
+    const auto oT_atm  = ekat::subview(T_atm,i);
+    const auto oth_atm  = ekat::subview(th_atm,i);
+    const auto ozi  = ekat::subview(zi,i);
+    const auto odz  = ekat::subview(dz,i);
+    const auto oast        = ekat::subview(ast,i);
+    const auto ocld_frac_l = ekat::subview(cld_frac_l,i);
+    const auto ocld_frac_i = ekat::subview(cld_frac_i,i);
+    const auto ocld_frac_r = ekat::subview(cld_frac_r,i);
+    const auto oqr  = ekat::subview(qr,i);
+    const auto oqi  = ekat::subview(qi,i);
+    const auto omu_c  = ekat::subview(mu_c,i);
+    const auto olamc  = ekat::subview(lamc,i);
+    
+    Kokkos::parallel_for(
+      Kokkos::TeamThreadRange(team, nk_pack), [&] (Int k) {
+
+      const auto range_pack = ekat::range<IntSmallPack>(k*Spack::n);
+      const auto range_mask = range_pack < m_num_levs;
+
+      omu_c(k) = mucon;
+      olamc(k) = (mucon - 1.0)/dcon;
+
+      oexner(k)  = physics::get_exner(opmid(k),range_mask);
+      oth_atm(k) = physics::T_to_th(oT_atm(k),oexner(k),range_mask);
+      odz(k)     = physics::get_dz(ozi(k),ozi(k+1),range_mask);
+
+      ocld_frac_l(k) = ekat::max(oast(k),mincld);
+      ocld_frac_i(k) = ocld_frac_l(k);
+      ocld_frac_r(k) = ocld_frac_l(k);
+      if (k != 0)
       {
-        cld_frac_r(i_col,i_lev).set(qr(i_col,i_lev-1)<qsmall or qi(i_col,i_lev-1)>=qsmall,ekat::max(ast(i_col,i_lev-1),cld_frac_r(i_col,i_lev)));
+        ocld_frac_r(k).set( (oqr(k)>=qsmall or oqi(k)>=qsmall),ekat::max(oast(k-1),ocld_frac_r(k)));
       }
-    }
-  }
+
+    });
+    team.team_barrier();
+  });
 
   // Pack our data into structs and ship it off to p3_main.
   P3F::P3PrognosticState prog_state{ qc, nc, qr, nr, qi, qm, ni, bm, qv, th_atm };
@@ -290,6 +324,7 @@ void P3Microphysics::run_impl (const Real dt)
   P3F::P3Infrastructure infrastructure{ dt, m_it, its, ite, kts, kte, do_predict_nc, do_prescribed_CCN, col_location };
   P3F::P3HistoryOnly history_only{ liq_ice_exchange, vap_liq_exchange, vap_ice_exchange };
 
+// --Eventually delete from here...
   auto q_before = qv(0,0);
   q_before = 0.0;
   for (int i_col=0;i_col<m_num_cols;i_col++)
@@ -299,8 +334,10 @@ void P3Microphysics::run_impl (const Real dt)
       q_before = q_before + (qv(i_col,i_lev) + qc(i_col,i_lev) + qr(i_col,i_lev) + qi(i_col,i_lev) + qm(i_col,i_lev));
     }
   }
+// to here.
   auto elapsed_microsec = P3F::p3_main(prog_state, diag_inputs, diag_outputs, infrastructure,
                                        history_only, m_num_cols, m_num_levs);
+// Eventually delete from here...
   auto q_after = qv(0,0);
   q_after = 0.0; 
   for (int i_col=0;i_col<m_num_cols;i_col++)
@@ -313,6 +350,9 @@ void P3Microphysics::run_impl (const Real dt)
     }
   }
   printf("ASD = q_diff:  %f, %f, %.10e\n",q_before,q_after,q_after-q_before);
+// to here.
+
+// TODO: Put in micro p3 post processing, i.e variables for radiation, etc.
 
   // Copy outputs back to device
   auto ts = timestamp();
@@ -366,25 +406,6 @@ void P3Microphysics::set_computed_field_impl (const Field<      Real>& f) {
 
   // Add myself as provider for the field
   add_me_as_provider(f);
-}
-
-void P3Microphysics::get_cloud_fraction(const Int num_lev, const Real* ast, const Real* qi, const Real* qr, Real* cld_frac_l, Real* cld_frac_i, Real* cld_frac_r)
-{
-  Real mincld = 0.0001;
-  Real qsmall = pow(10.0,-14);
-  cld_frac_l[0] = std::max(ast[0],mincld);
-  cld_frac_i[0] = std::max(ast[0],mincld);
-  cld_frac_r[0] = std::max(ast[0],mincld);
-  for (int i_lev=1;i_lev<num_lev;i_lev++)
-  {
-    cld_frac_l[i_lev] = std::max(ast[i_lev],mincld);
-    cld_frac_i[i_lev] = std::max(ast[i_lev],mincld);
-    // Hard-code "max_overlap" method for cloud fraction.
-    if (qr[i_lev-1]>=qsmall or qi[i_lev-1]>=qsmall)
-    {
-      cld_frac_r[i_lev] = std::max( std::max(ast[i_lev-1],ast[i_lev]), mincld );
-    }
-  }
 }
 
 } // namespace scream
