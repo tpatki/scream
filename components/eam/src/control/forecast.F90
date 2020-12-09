@@ -191,23 +191,7 @@ subroutine forecast(lat, psm1, psm2,ps, &
 !  advection calculation.  Skip to diagnostic estimates of vertical term.
       i=1
       do k=1,plev
-      ! If IOP mode, do not consider physics temperature tendency
-      !   since that will be redundant.  In pure SCM mode, that section 
-      !   of dycore is not called and thus needs to be added here.  
-#ifdef MODEL_THETA_L
-        ! theta_l model prog variable is temp tendency
-        if (iop_mode) then 
-          tfcst(k) = t3m2(k) + divt3d(k)
-        else
-          tfcst(k) = t3m2(k) + t2(k) + divt3d(k)
-        endif
-#else
-        if (iop_mode) then
-          tfcst(k) = t3m2(k) + ztodt*divt3d(k)
-        else
-          tfcst(k) = t3m2(k) + ztodt*t2(k) + ztodt*divt3d(k)
-        endif
-#endif
+         tfcst(k) = t3m2(k) + ztodt*t2(k) + ztodt*divt3d(k)
       end do
       do m=1,pcnst
          do k=1,plev
@@ -519,26 +503,16 @@ end if
 !
 
    do k=1,plev
+     tfcst(k) = tfcst(k) &   
      ! If IOP mode, do not consider physics temperature tendency
      !   since that will be redundant.  In pure SCM mode, that section 
      !   of dycore is not called and thus needs to be added here.   
-#ifdef MODEL_THETA_L
-     ! in theta_l model, prog variable is temp tendency, not temp 
-     if (iop_mode) then
-       tfcst(k) = tfcst(k) + wfld(k)*t3m1(k)*rair/(cpair*pmidm1(k)) + divt(k)     
-     else
-       tfcst(k) = tfcst(k) + wfld(k)*t3m1(k)*rair/(cpair*pmidm1(k)) &
-         + (t2(k) + divt(k))
-     endif
-#else
-     if (iop_mode) then
-       tfcst(k) = tfcst(k) + ztodt*wfld(k)*t3m1(k)*rair/(cpair*pmidm1(k)) &
-         + ztodt*(divt(k))     
-     else
-       tfcst(k) = tfcst(k) + ztodt*wfld(k)*t3m1(k)*rair/(cpair*pmidm1(k)) &
-         + ztodt*(t2(k) + divt(k))
-     endif
+#ifndef MODEL_THETA_L
+         ! this term is already taken into account through
+         !  LS vertical advection in theta-l dycore
+         + ztodt*wfld(k)*t3m1(k)*rair/(cpair*pmidm1(k)) &
 #endif
+         + ztodt*(t2(k) + divt(k))
      do m=1,pcnst
        qfcst(1,k,m) = qfcst(1,k,m) + ztodt*divq(k,m)
      end do
