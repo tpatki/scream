@@ -50,11 +50,12 @@ void P3InputsInitializer::initialize_fields ()
   // Safety check: if we're asked to init anything at all,
   // then we should have been asked to init 10 fields.
   int count = 0;
-  count += m_fields.count("q");
   count += m_fields.count("T_atm");
   count += m_fields.count("ast");
+  count += m_fields.count("nccn_prescribed");
   count += m_fields.count("ni_activated");
   count += m_fields.count("nc_nuceat_tend");
+  count += m_fields.count("inv_qc_relvar");
   count += m_fields.count("pmid");
   count += m_fields.count("dp");
   count += m_fields.count("zi");
@@ -74,19 +75,20 @@ void P3InputsInitializer::initialize_fields ()
     return;
   }
 
-  EKAT_REQUIRE_MSG (count==19,
-    "Error! P3InputsInitializer is expected to init 'q','T_atm','ast','ni_activated','nc_nuceat_tend','pmid','dp','zi','qv_prev','T_prev',.\n"
-    "       'qv', 'qc', 'qr', 'qi', 'qm', 'nc', 'nr', 'ni', 'bm'.\n"
+  EKAT_REQUIRE_MSG (count==20,
+    "Error! P3InputsInitializer is expected to init 'T_atm','ast','ni_activated','nc_nuceat_tend','pmid','dp','zi','qv_prev','T_prev',.\n"
+    "       'qv', 'qc', 'qr', 'qi', 'qm', 'nc', 'nr', 'ni', 'bm','nccn_prescribed','inv_qc_relvar'.\n"
     "       Only " + std::to_string(count) + " of those have been found.\n"
     "       Please, check the atmosphere processes you are using,"
     "       and make sure they agree on who's initializing each field.\n");
 
   // Get device views
-  auto d_q     = m_fields.at("q").get_reshaped_view<Real**>();
   auto d_T_atm = m_fields.at("T_atm").get_reshaped_view<Real**>();
   auto d_ast   = m_fields.at("ast").get_reshaped_view<Real**>();
+  auto d_nccn_prescribed   = m_fields.at("nccn_prescribed").get_reshaped_view<Real**>();
   auto d_ni_activated   = m_fields.at("ni_activated").get_reshaped_view<Real**>();
   auto d_nc_nuceat_tend = m_fields.at("nc_nuceat_tend").get_reshaped_view<Real**>();
+  auto d_inv_qc_relvar    = m_fields.at("inv_qc_relvar").get_reshaped_view<Real**>();
   auto d_pmid    = m_fields.at("pmid").get_reshaped_view<Real**>();
   auto d_dpres   = m_fields.at("dp").get_reshaped_view<Real**>();
   auto d_zi      = m_fields.at("zi").get_reshaped_view<Real**>();
@@ -102,11 +104,12 @@ void P3InputsInitializer::initialize_fields ()
   auto d_ni    = m_fields.at("ni").get_reshaped_view<Real**>();
   auto d_bm    = m_fields.at("bm").get_reshaped_view<Real**>();
   // Create host mirrors
-  auto h_q     = Kokkos::create_mirror_view(d_q);
   auto h_T_atm = Kokkos::create_mirror_view(d_T_atm);
   auto h_ast   = Kokkos::create_mirror_view(d_ast);
+  auto h_nccn_prescribed  = Kokkos::create_mirror_view(d_nccn_prescribed);
   auto h_ni_activated  = Kokkos::create_mirror_view(d_ni_activated);
   auto h_nc_nuceat_tend = Kokkos::create_mirror_view(d_nc_nuceat_tend);
+  auto h_inv_qc_relvar  = Kokkos::create_mirror_view(d_inv_qc_relvar);
   auto h_pmid  = Kokkos::create_mirror_view(d_pmid);
   auto h_dpres  = Kokkos::create_mirror_view(d_dpres);
   auto h_zi    = Kokkos::create_mirror_view(d_zi);
@@ -123,11 +126,12 @@ void P3InputsInitializer::initialize_fields ()
   auto h_ni     = Kokkos::create_mirror_view(d_ni);
   auto h_bm     = Kokkos::create_mirror_view(d_bm);
   // Get host mirros' raw pointers
-  auto q     = h_q.data();
   auto T_atm     = h_T_atm.data();
   auto ast   = h_ast.data();
+  auto nccn_prescribed  = h_nccn_prescribed.data();
   auto ni_activated  = h_ni_activated.data();
   auto nc_nuceat_tend = h_nc_nuceat_tend.data();
+  auto inv_qc_relvar  = h_inv_qc_relvar.data();
   auto pmid  = h_pmid.data();
   auto dpres  = h_dpres.data();
   auto zi    = h_zi.data();
@@ -143,9 +147,6 @@ void P3InputsInitializer::initialize_fields ()
   auto nr = h_nr.data();
   auto ni = h_ni.data();
   auto bm = h_bm.data();
-  // Call f90 routine
-//  p3_standalone_init_f90 (q, T_atm, zi, pmid, dpres, ast, ni_activated, nc_nuceat_tend, qv_prev, t_prev,
-//                          qv, qc, qr, qi, qm, nc, nr, ni, bm);
 
   std::string line_in;
   std::ifstream infile("./data/p3_universal_constants.inp");
@@ -181,6 +182,9 @@ void P3InputsInitializer::initialize_fields ()
         h_qm(i_col,i_lev)             = lineData[13];
         h_bm(i_col,i_lev)             = lineData[14];
         h_dpres(i_col,i_lev)          = lineData[15];
+        // Init variables that are not in the ascii file but still need to be init'd
+        h_nccn_prescribed(i_col,i_lev) = 0.0;
+        h_inv_qc_relvar(i_col,i_lev) = 1.0;
       } else {
         h_zi(i_col,i_lev)             = lineData[0];
       }
@@ -189,11 +193,12 @@ void P3InputsInitializer::initialize_fields ()
   
 
   // Deep copy back to device
-  Kokkos::deep_copy(d_q,h_q);
   Kokkos::deep_copy(d_T_atm,h_T_atm);
   Kokkos::deep_copy(d_ast,h_ast);
+  Kokkos::deep_copy(d_nccn_prescribed,h_nccn_prescribed);
   Kokkos::deep_copy(d_ni_activated,h_ni_activated);
   Kokkos::deep_copy(d_nc_nuceat_tend,h_nc_nuceat_tend);
+  Kokkos::deep_copy(d_inv_qc_relvar,h_inv_qc_relvar);
   Kokkos::deep_copy(d_pmid,h_pmid);
   Kokkos::deep_copy(d_dpres,h_dpres);
   Kokkos::deep_copy(d_zi,h_zi);
@@ -209,12 +214,6 @@ void P3InputsInitializer::initialize_fields ()
   Kokkos::deep_copy(d_nr,h_nr);
   Kokkos::deep_copy(d_ni,h_ni);
   Kokkos::deep_copy(d_bm,h_bm);
-  // If we are in charge of init-ing FQ as well, init it to 0.
-  if (m_fields.count("FQ")==1) {
-    // Init FQ to 0
-    auto d_FQ = m_fields.at("FQ").get_view();
-    Kokkos::deep_copy(d_FQ,Real(0));
-  }
 
   if (m_remapper) {
     m_remapper->registration_ends();
