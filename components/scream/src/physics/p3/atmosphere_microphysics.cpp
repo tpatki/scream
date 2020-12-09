@@ -40,9 +40,10 @@ void P3Microphysics::set_grids(const std::shared_ptr<const GridsManager> grids_m
   // Nevertheless, for output reasons, we like to see 'kg/kg'.
   auto Q = kg/kg;
   Q.set_string("kg/kg");
+  auto nondim = m/m;
+  auto mm = m/1000;
 
   constexpr int NVL = SCREAM_NUM_VERTICAL_LEV;
-  constexpr int QSZ =  35;  /* TODO THIS NEEDS TO BE CHANGED TO A CONFIGURABLE */
 
   const auto& grid_name = m_p3_params.get<std::string>("Grid");
   auto grid = grids_manager->get_grid(grid_name);
@@ -57,8 +58,6 @@ void P3Microphysics::set_grids(const std::shared_ptr<const GridsManager> grids_m
   FieldLayout scalar3d_layout_mid { {COL,VL}, {nc,NVL} }; // Note that C++ and Fortran read array dimensions in reverse
   FieldLayout scalar3d_layout_int { {COL,VL}, {nc,NVL+1} }; // Note that C++ and Fortran read array dimensions in reverse
 
-  auto nondim = m/m;
-  auto mm = m/1000;
   // Variables needed, but not passed to P3
   m_required_fields.emplace("ast",   scalar3d_layout_mid, nondim, grid_name);
   m_required_fields.emplace("pmid",  scalar3d_layout_mid, Pa,     grid_name);
@@ -119,8 +118,6 @@ void P3Microphysics::initialize_impl (const util::TimeStamp& t0)
   using namespace p3;
   m_current_ts = t0;
 
-  // Call f90 routine
-//  p3_init_f90 (m_num_cols,m_num_levs);
   p3_init();
 
   // We may have to init some fields from within P3. This can be the case in a P3 standalone run.

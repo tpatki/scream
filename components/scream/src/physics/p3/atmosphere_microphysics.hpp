@@ -80,13 +80,13 @@ protected:
   std::shared_ptr<FieldInitializer>  m_initializer;
 
   util::TimeStamp   m_current_ts;
-  ekat::Comm              m_p3_comm;
+  ekat::Comm        m_p3_comm;
 
   ekat::ParameterList     m_p3_params;
 
   Int m_num_cols;
   Int m_num_levs;
-  Int m_it=0;
+  Int m_it=0;  //TODO: Grab this info from the Timestamp when possible.
 
 }; // class P3Microphysics
 
