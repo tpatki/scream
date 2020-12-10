@@ -24,10 +24,12 @@ public:
 protected:
 
   void add_field (const field_type& f);
+  void add_field (const field_type& f, const field_type& f_ref,
+                  const remapper_ptr_type& remapper);
 
   std::map<std::string,const field_type>  m_fields;
-
   std::set<FieldIdentifier> m_fields_id;
+  std::shared_ptr<AbstractRemapper<Real>> m_remapper;
 };
 
 } // namespace scream
