@@ -40,9 +40,10 @@ namespace scream {
 
         bool initialized = false;
 
-        /* 
-         * Define some dummy routines so we can start working on the interface
-         * between SCREAM and RRTMGP
+        /*
+         * The following routines provide a simple interface to RRTMGP. These
+         * can be used as-is, but are intended to be wrapped by the SCREAM AD
+         * interface to radiation.
          */
         void rrtmgp_initialize() {
 
