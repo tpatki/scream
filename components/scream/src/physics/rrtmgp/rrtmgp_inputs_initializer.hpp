@@ -12,20 +12,20 @@ public:
   virtual ~RRTMGPInputsInitializer () = default;
 
   // The name of the initializer
-  std::string name () const { return "RRTMGPInputsInitializer"; }
+  std::string name () const override { return "RRTMGPInputsInitializer"; }
   
   // Initialize fields
-  void initialize_fields ();
+  void initialize_fields () override;
 
-  const std::set<FieldIdentifier>& get_inited_fields () const {
+  const std::set<FieldIdentifier>& get_inited_fields () const override {
     return m_fields_id;
   }
 
 protected:
 
-  void add_field (const field_type& f);
+  void add_field (const field_type& f) override;
   void add_field (const field_type& f, const field_type& f_ref,
-                  const remapper_ptr_type& remapper);
+                  const remapper_ptr_type& remapper) override;
 
   std::map<std::string,const field_type>  m_fields;
   std::set<FieldIdentifier> m_fields_id;
