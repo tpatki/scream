@@ -5,7 +5,8 @@
 #include "mo_gas_concentrations.h"
 
 namespace scream {
-    RRTMGPRadiation::RRTMGPRadiation (const ekat::Comm& comm, const ekat::ParameterList& params) : m_rrtmgp_comm (comm), m_rrtmgp_params (params) {
+    RRTMGPRadiation::RRTMGPRadiation (const ekat::Comm& comm, const ekat::ParameterList& params) 
+        : AtmosphereProcess::AtmosphereProcess(), m_rrtmgp_comm (comm), m_rrtmgp_params (params) {
         /*
          * Anything that can be initialized without grid information can be initialized here.
          * I.e., universal constants, options, etc.
