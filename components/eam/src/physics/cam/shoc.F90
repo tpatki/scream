@@ -497,6 +497,7 @@ subroutine shoc_main ( &
      shoc_qv,u_wind,v_wind,&              ! Input
      ustar,obklen,kbfs,shoc_cldfrac,&     ! Input
      pblh)                                ! Output
+
   return
 
 end subroutine shoc_main
