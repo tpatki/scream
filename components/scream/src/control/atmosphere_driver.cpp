@@ -179,7 +179,7 @@ void AtmosphereDriver::initialize (const ekat::Comm& atm_comm,
 
   if (!m_surface_coupling) {
     // Standalone runs *may* require initialization of atm inputs.
-    init_atm_inputs ();
+//    init_atm_inputs ();
 
     // In standalone runs, we already have everything we need for the dag,
     // so we can proceed to do its inspection. Any unmet dependency in
@@ -287,6 +287,7 @@ void AtmosphereDriver::init_atm_inputs () {
     // initializer is set to init this field on a non-ref grid. In that case,
     // such non-ref field would *not* appear as an atm input (since it's the
     // output of a remapper).
+    printf("ASD - atm_inputs: %s\n",input.name().c_str());
     auto& aliases = m_field_repo->get_aliases(input.name());
     for (auto& it : aliases) {
       auto& f = it.second;
@@ -303,6 +304,7 @@ void AtmosphereDriver::init_atm_inputs () {
         // on the ref grid.
         const auto& ref_grid = m_grids_manager->get_reference_grid();
         const auto&     grid = m_grids_manager->get_grid(id.get_grid_name());
+        printf("ASD - driver: %s\n",id.name().c_str());
         if (grid->name()!=ref_grid->name()) {
           auto& f_ref = m_field_repo->get_field(id.name(),ref_grid->name());
           const auto& remapper = m_grids_manager->create_remapper(grid,ref_grid);

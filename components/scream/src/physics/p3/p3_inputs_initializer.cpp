@@ -1,4 +1,7 @@
 #include "physics/p3/p3_inputs_initializer.hpp"
+#include "physics/p3/p3_f90.hpp"
+#include "physics/p3/p3_main_impl.hpp"
+#include "ekat/ekat_pack.hpp"
 
 #include <sstream>
 #include <fstream>
@@ -11,7 +14,8 @@ namespace scream
 void P3InputsInitializer::add_field (const field_type &f)
 {
   const auto& id = f.get_header().get_identifier();
-  
+ 
+  printf("ASD - emplace field %s\n",id.name().c_str()); 
   m_fields.emplace(id.name(),f);
   m_fields_id.insert(id);
 }
@@ -83,26 +87,31 @@ void P3InputsInitializer::initialize_fields ()
     "       and make sure they agree on who's initializing each field.\n");
 
   // Get device views
-  auto d_T_atm = m_fields.at("T_atm").get_reshaped_view<Real**>();
-  auto d_ast   = m_fields.at("ast").get_reshaped_view<Real**>();
-  auto d_nccn_prescribed   = m_fields.at("nccn_prescribed").get_reshaped_view<Real**>();
-  auto d_ni_activated   = m_fields.at("ni_activated").get_reshaped_view<Real**>();
-  auto d_nc_nuceat_tend = m_fields.at("nc_nuceat_tend").get_reshaped_view<Real**>();
-  auto d_inv_qc_relvar    = m_fields.at("inv_qc_relvar").get_reshaped_view<Real**>();
-  auto d_pmid    = m_fields.at("pmid").get_reshaped_view<Real**>();
-  auto d_dpres   = m_fields.at("dp").get_reshaped_view<Real**>();
-  auto d_zi      = m_fields.at("zi").get_reshaped_view<Real**>();
-  auto d_qv_prev = m_fields.at("qv_prev").get_reshaped_view<Real**>();
-  auto d_t_prev  = m_fields.at("T_prev").get_reshaped_view<Real**>();
-  auto d_qv    = m_fields.at("qv").get_reshaped_view<Real**>();
-  auto d_qc    = m_fields.at("qc").get_reshaped_view<Real**>();
-  auto d_qr    = m_fields.at("qr").get_reshaped_view<Real**>();
-  auto d_qi    = m_fields.at("qi").get_reshaped_view<Real**>();
-  auto d_qm    = m_fields.at("qm").get_reshaped_view<Real**>();
-  auto d_nc    = m_fields.at("nc").get_reshaped_view<Real**>();
-  auto d_nr    = m_fields.at("nr").get_reshaped_view<Real**>();
-  auto d_ni    = m_fields.at("ni").get_reshaped_view<Real**>();
-  auto d_bm    = m_fields.at("bm").get_reshaped_view<Real**>();
+  using namespace p3;
+  using P3F      = Functions<Real, DefaultDevice>;
+  using Spack    = typename P3F::Spack;
+  using Pack     = typename ekat::Pack<Real, Spack::n>;
+
+  auto d_T_atm = m_fields.at("T_atm").get_reshaped_view<Pack**>();
+  auto d_ast   = m_fields.at("ast").get_reshaped_view<Pack**>();
+  auto d_nccn_prescribed   = m_fields.at("nccn_prescribed").get_reshaped_view<Pack**>();
+  auto d_ni_activated   = m_fields.at("ni_activated").get_reshaped_view<Pack**>();
+  auto d_nc_nuceat_tend = m_fields.at("nc_nuceat_tend").get_reshaped_view<Pack**>();
+  auto d_inv_qc_relvar    = m_fields.at("inv_qc_relvar").get_reshaped_view<Pack**>();
+  auto d_pmid    = m_fields.at("pmid").get_reshaped_view<Pack**>();
+  auto d_dpres   = m_fields.at("dp").get_reshaped_view<Pack**>();
+  auto d_zi      = m_fields.at("zi").get_reshaped_view<Pack**>();
+  auto d_qv_prev = m_fields.at("qv_prev").get_reshaped_view<Pack**>();
+  auto d_t_prev  = m_fields.at("T_prev").get_reshaped_view<Pack**>();
+  auto d_qv    = m_fields.at("qv").get_reshaped_view<Pack**>();
+  auto d_qc    = m_fields.at("qc").get_reshaped_view<Pack**>();
+  auto d_qr    = m_fields.at("qr").get_reshaped_view<Pack**>();
+  auto d_qi    = m_fields.at("qi").get_reshaped_view<Pack**>();
+  auto d_qm    = m_fields.at("qm").get_reshaped_view<Pack**>();
+  auto d_nc    = m_fields.at("nc").get_reshaped_view<Pack**>();
+  auto d_nr    = m_fields.at("nr").get_reshaped_view<Pack**>();
+  auto d_ni    = m_fields.at("ni").get_reshaped_view<Pack**>();
+  auto d_bm    = m_fields.at("bm").get_reshaped_view<Pack**>();
   // Create host mirrors
   auto h_T_atm = Kokkos::create_mirror_view(d_T_atm);
   auto h_ast   = Kokkos::create_mirror_view(d_ast);

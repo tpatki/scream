@@ -144,6 +144,7 @@ void P3Microphysics::initialize_impl (const util::TimeStamp& t0)
   if (initable.size()>0) {
     bool all_inited = true, all_uninited = true;
     for (const auto& name : initable) {
+      printf("ASD - p3_init: %s\n",name.c_str());
       const auto& f = m_p3_fields_in.at(name);
       const auto& track = f.get_header().get_tracking();
       if (track.get_init_type()==InitType::None) {
@@ -174,7 +175,6 @@ void P3Microphysics::run_impl (const Real dt)
   using physics = scream::physics::Functions<Real, DefaultDevice>;
   using Spack    = typename P3F::Spack;
   using Pack     = typename ekat::Pack<Real, Spack::n>;
-  using cPack    = typename ekat::Pack<Real, Spack::n>;
   using IntSmallPack = typename ekat::Pack<Int, Spack::n>;
 
   using view_1d  = typename P3F::view_1d<Real>;
@@ -185,12 +185,12 @@ void P3Microphysics::run_impl (const Real dt)
   std::vector<Real*> out;
 
   // Copy inputs to host. Copy also outputs, cause we might "update" them, rather than overwrite them.
-  for (auto& it : m_p3_fields_in) {
-    Kokkos::deep_copy(m_p3_host_views_in.at(it.first),it.second.get_view());
-  }
-  for (auto& it : m_p3_fields_out) {
-    Kokkos::deep_copy(m_p3_host_views_out.at(it.first),it.second.get_view());
-  }
+//  for (auto& it : m_p3_fields_in) {
+//    Kokkos::deep_copy(m_p3_host_views_in.at(it.first),it.second.get_view());
+//  }
+//  for (auto& it : m_p3_fields_out) {
+//    Kokkos::deep_copy(m_p3_host_views_out.at(it.first),it.second.get_view());
+//  }
 
   // --Prognostic State Variables: 
   auto qc     = m_p3_fields_out["qc"].get_reshaped_view<Pack**>();
@@ -233,6 +233,14 @@ void P3Microphysics::run_impl (const Real dt)
   auto precip_total_tend  = m_p3_fields_out["precip_total_tend"].get_reshaped_view<Pack**>();
   auto nevapr             = m_p3_fields_out["nevapr"].get_reshaped_view<Pack**>();
   auto qr_evap_tend       = m_p3_fields_out["qr_evap_tend"].get_reshaped_view<Pack**>();
+//  for (int i_col=0;i_col<m_num_cols;i_col++)
+//  {
+//    for (int i_lev=0;i_lev<m_num_levs;i_lev++)
+//    {
+//      qr_evap_tend(i_col,i_lev) = i_col+i_lev/100.0;
+//      printf("ASD - ind(%2d,%2d)=%8.4f vs %8.4f\n",i_col,i_lev,qr_evap_tend(i_col,i_lev),i_col+i_lev/100.);
+//    }
+//  }
   // --Infrastructure
   // dt is passed to run
   m_it++;
@@ -367,11 +375,16 @@ void P3Microphysics::finalize_impl()
 
 // =========================================================================================
 void P3Microphysics::register_fields (FieldRepository<Real>& field_repo) const {
+  using namespace p3;
+  using P3F      = Functions<Real, DefaultDevice>;
+  using Spack    = typename P3F::Spack;
+  using Pack = ekat::Pack<Real,Spack::n>;
+
   for (auto& fid : m_required_fields) {
-    field_repo.register_field(fid);
+    field_repo.register_field<Pack>(fid);
   }
   for (auto& fid : m_computed_fields) {
-    field_repo.register_field(fid);
+    field_repo.register_field<Pack>(fid);
   }
 }
 
