@@ -39,6 +39,7 @@ struct Functions
   using IntSmallPack = SmallPack<Int>;
   using Pack = BigPack<Scalar>;
   using Spack = SmallPack<Scalar>;
+  using Pack1d = ekat::Pack<Scalar, 1>;
 
   using Mask  = ekat::Mask<Pack::n>;
   using Smask = ekat::Mask<Spack::n>;
@@ -67,6 +68,112 @@ struct Functions
   using MemberType = typename KT::MemberType;
 
   using Workspace = typename ekat::WorkspaceManager<Spack, Device>::Workspace;
+
+  // This struct stores input views for shoc_main.
+  struct SHOCInput {
+    // Grid spacing of host model in x direction [m]
+    view_1d<Pack1d> host_dx;
+    // grid spacing of host model in y direction [m]
+    view_1d<Pack1d> host_dy;
+    // heights, for thermo grid [m]
+    view_2d<Spack>  zt_grid;
+    // heights, for interface grid [m]
+    view_2d<Spack>  zi_grid;
+    // pressure levels on thermo grid [Pa]
+    view_2d<Spack>  pres;
+    // pressure levels on interface grid [Pa]
+    view_2d<Spack>  presi;
+    // Differences in pressure levels [Pa]
+    view_2d<Spack>  pdel;
+    // virtual potential temperature [K]
+    view_2d<Spack>  thv;
+    // large scale vertical velocity [m/s]
+    view_2d<Spack>  w_field;
+    // Surface sensible heat flux [K m/s]
+    view_1d<Pack1d> wthl_sfc;
+    // Surface latent heat flux [kg/kg m/s]
+    view_1d<Pack1d> wqw_sfc;
+    // Surface momentum flux (u-direction) [m2/s2]
+    view_1d<Pack1d> uw_sfc;
+    // Surface momentum flux (v-direction) [m2/s2]
+    view_1d<Pack1d> vw_sfc;
+    // Surface flux for tracers [varies]
+    view_2d<Spack>  wtracer_sfc;
+    // Exner function [-]
+    view_2d<Spack>  exner;
+    // Host model surface geopotential height
+    view_1d<Pack1d> phis;
+  };
+
+  // This struct stores input/outputs views for shoc_main.
+  struct SHOCInputOutput {
+    // prognostic temp variable of host model
+    // dry static energy [J/kg]
+    // dse = Cp*T + g*z + phis
+    view_2d<Spack>  host_dse;
+    // turbulent kinetic energy [m2/s2]
+    view_2d<Spack>  tke;
+    // liquid water potential temperature [K]
+    view_2d<Spack>  thetal;
+    // total water mixing ratio [kg/kg]
+    view_2d<Spack>  qw;
+    // u wind component [m/s]
+    view_2d<Spack>  u_wind;
+    // v wind component [m/s]
+    view_2d<Spack>  v_wind;
+    // buoyancy flux [K m/s]
+    view_2d<Spack>  wthv_sec;
+    // tracers [varies]
+    view_3d<Spack>  qtracers;
+    // eddy coefficient for momentum [m2/s]
+    view_2d<Spack>  tk;
+    // eddy coefficent for heat [m2/s]
+    view_2d<Spack>  tkh;
+    // Cloud fraction [-]
+    view_2d<Spack>  shoc_cldfrac;
+    // cloud liquid mixing ratio [kg/kg]
+    view_2d<Spack>  shoc_ql;
+  };
+
+  // This struct stores output only views for shoc_main.
+  struct SHOCOutput {
+    // planetary boundary layer depth [m]
+    view_1d<Pack1d> pblh;
+    // cloud liquid mixing ratio variance [kg^2/kg^2]
+    view_2d<Spack>  shoc_ql2;
+  };
+
+  // This struct stores output views for SHOC diagnostics for shoc_main.
+  struct SHOCHistoryOutput {
+    // Turbulent length scale [m]
+    view_2d<Spack>  shoc_mix;
+    // vertical velocity variance [m2/s2]
+    view_2d<Spack>  w_sec;
+    // temperature variance [K^2]
+    view_2d<Spack>  thl_sec;
+    // moisture variance [kg2/kg2]
+    view_2d<Spack>  qw_sec;
+    // temp moisture covariance [K kg/kg]
+    view_2d<Spack>  qwthl_sec;
+    // vertical heat flux [K m/s]
+    view_2d<Spack>  wthl_sec;
+    // vertical moisture flux [K m/s]
+    view_2d<Spack>  wqw_sec;
+    // vertical tke flux [m3/s3]
+    view_2d<Spack>  wtke_sec;
+    // vertical zonal momentum flux [m2/s2]
+    view_2d<Spack>  uw_sec;
+    // vertical meridional momentum flux [m2/s2]
+    view_2d<Spack>  vw_sec;
+    // third moment vertical velocity [m3/s3]
+    view_2d<Spack>  w3;
+    // liquid water flux [kg/kg m/s]
+    view_2d<Spack>  wqls_sec;
+    // brunt vaisala frequency [s-1]
+    view_2d<Spack>  brunt;
+    // return to isotropic timescale [s]
+    view_2d<Spack>  isotropy;
+  };
 
   //
   // --------- Functions ---------
@@ -476,12 +583,12 @@ struct Functions
     const uview_1d<Spack>&       rdp_zt);
 
   KOKKOS_FUNCTION
-  static void shoc_main(
+  static void shoc_main_internal(
     const MemberType&            team,
     const Int&                   nlev,
     const Int&                   nlevi,
-    const Int&                   num_qtracers,
     const Int&                   nadv,
+    const Int&                   num_q_tracers,
     const Scalar&                dtime,
     const Scalar&                host_dx,
     const Scalar&                host_dy,
@@ -528,6 +635,9 @@ struct Functions
     const uview_1d<Spack>&       qwthl_sec_zt,
     const uview_1d<Spack>&       qw_sec_zt,
 
+      const uview_1d<Spack>&       tmp_thv,
+      const uview_1d<Spack>&       tmp_rino,
+
     const uview_1d<Spack>&       host_dse,
     const uview_1d<Spack>&       tke,
     const uview_1d<Spack>&       thetal,
@@ -557,8 +667,33 @@ struct Functions
     const uview_1d<Spack>&       brunt,
     const uview_1d<Spack>&       isotropy);
 
+  // Return microseconds elapsed
+  static Int shoc_main(
+    const Int&               shcol, // Number of SHOC columns in the array
+    const Int&               nlev, // Number of levels
+    const Int&               nlevi, // Number of levels on interface grid
+    const Int&               nadv, // Number of times to loop SHOC
+    const Int&               num_q_tracers, // Number of tracers
+    const Scalar&            dtime, // SHOC timestep [s]
+    const SHOCInput&         shoc_input,
+    const SHOCInputOutput&   shoc_input_output,
+    const SHOCOutput&        shoc_output,
+    const SHOCHistoryOutput& shoc_history_output);
+
   KOKKOS_FUNCTION
-  static void pblintd_height(const Int& shcol, const Int& nlev, const uview_1d<const Spack>& z, const uview_1d<const Spack>& u, const uview_1d<const Spack>& v, const uview_1d<const Spack>& ustar, const uview_1d<const Spack>& thv, const uview_1d<const Spack>& thv_ref, const uview_1d<Spack>& pblh, const uview_1d<Spack>& rino, const uview_1d<bool>& check);
+  static void pblintd_height(
+    const MemberType&            team,
+    const Int& nlev,
+      const Int& npbl,
+    const uview_1d<const Spack>& z,
+    const uview_1d<const Spack>& u,
+    const uview_1d<const Spack>& v,
+    const Scalar& ustar,
+    const uview_1d<const Spack>& thv,
+    const Scalar& thv_ref,
+    Scalar& pblh,
+    const uview_1d<Spack>& rino,
+    bool& check);
 
   KOKKOS_FUNCTION
   static void pblintd_init(
@@ -590,6 +725,7 @@ struct Functions
 
   KOKKOS_FUNCTION
   static void pblintd_init(const Int& shcol, const Int& nlev, const uview_1d<const Spack>& z, const uview_1d<bool>& check, const uview_1d<Spack>& rino, const uview_1d<Spack>& pblh);
+
   KOKKOS_FUNCTION
   static void pblintd_surf_temp(const Int& shcol, const Int& nlev, const Int& nlevi, const uview_1d<const Spack>& z, const uview_1d<const Spack>& ustar, const uview_1d<const Spack>& obklen, const uview_1d<const Spack>& kbfs, const uview_1d<const Spack>& thv, const uview_1d<Spack>& tlv, const uview_1d<Spack>& pblh, const uview_1d<bool>& check, const uview_1d<Spack>& rino);
 
@@ -704,6 +840,7 @@ struct Functions
 # include "shoc_grid_impl.hpp"
 # include "shoc_eddy_diffusivities_impl.hpp"
 # include "shoc_tke_impl.hpp"
+# include "shoc_init_impl.hpp"
 #endif // KOKKOS_ENABLE_CUDA
 
 #endif // SHOC_FUNCTIONS_HPP

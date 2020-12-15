@@ -327,7 +327,7 @@ struct UnitWrap::UnitTest<D>::TestShocMain {
 
     // Generate random input data
     for (auto& d : f90_data) {
-      d.randomize();
+      d.randomize({ {d.thetal, {500, 700}} });
     }
 
     // Create copies of data for use by cxx. Needs to happen before fortran calls so that
@@ -350,14 +350,14 @@ struct UnitWrap::UnitTest<D>::TestShocMain {
     // Get data from cxx
     for (auto& d : cxx_data) {
       d.transpose<ekat::TransposeDirection::c2f>(); // _f expects data in fortran layout
-      shoc_main_f(d.shcol, d.nlev, d.nlevi, d.dtime, d.nadv, d.host_dx, d.host_dy,
-                  d.thv, d.zt_grid, d.zi_grid, d.pres, d.presi, d.pdel, d.wthl_sfc,
-                  d.wqw_sfc, d.uw_sfc, d.vw_sfc, d.wtracer_sfc, d.num_qtracers,
-                  d.w_field, d.exner, d.phis, d.host_dse, d.tke, d.thetal, d.qw,
-                  d.u_wind, d.v_wind, d.qtracers, d.wthv_sec, d.tkh, d.tk, d.shoc_ql,
-                  d.shoc_cldfrac, d.pblh, d.shoc_mix, d.isotropy, d.w_sec, d.thl_sec,
-                  d.qw_sec, d.qwthl_sec, d.wthl_sec, d.wqw_sec, d.wtke_sec, d.uw_sec,
-                  d.vw_sec, d.w3, d.wqls_sec, d.brunt, d.shoc_ql2);
+//      shoc_main_f(d.shcol, d.nlev, d.nlevi, d.dtime, d.nadv, d.host_dx, d.host_dy,
+//                  d.thv, d.zt_grid, d.zi_grid, d.pres, d.presi, d.pdel, d.wthl_sfc,
+//                  d.wqw_sfc, d.uw_sfc, d.vw_sfc, d.wtracer_sfc, d.num_qtracers,
+//                  d.w_field, d.exner, d.phis, d.host_dse, d.tke, d.thetal, d.qw,
+//                  d.u_wind, d.v_wind, d.qtracers, d.wthv_sec, d.tkh, d.tk, d.shoc_ql,
+//                  d.shoc_cldfrac, d.pblh, d.shoc_mix, d.isotropy, d.w_sec, d.thl_sec,
+//                  d.qw_sec, d.qwthl_sec, d.wthl_sec, d.wqw_sec, d.wtke_sec, d.uw_sec,
+//                  d.vw_sec, d.w3, d.wqls_sec, d.brunt, d.shoc_ql2);
       d.transpose<ekat::TransposeDirection::f2c>(); // go back to C layout
     }
 

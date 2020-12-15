@@ -194,6 +194,10 @@ subroutine shoc_main ( &
      uw_sec, vw_sec, w3,&                 ! Output (diagnostic)
      wqls_sec, brunt, shoc_ql2)           ! Output (diagnostic)
 
+#ifdef SCREAM_CONFIG_IS_CMAKE
+    use shoc_iso_f, only: shoc_main_f
+#endif
+
   implicit none
 
 ! INPUT VARIABLES
@@ -338,6 +342,28 @@ subroutine shoc_main ( &
               wv_b(shcol),wl_b(shcol),&
               se_a(shcol),ke_a(shcol),&
               wv_a(shcol),wl_a(shcol)
+
+#ifdef SCREAM_CONFIG_IS_CMAKE
+  if (use_cxx) then
+    call shoc_main_f(shcol, nlev, nlevi, dtime, nadv, &   ! Input
+    host_dx, host_dy,thv, &              ! Input
+    zt_grid,zi_grid,pres,presi,pdel,&    ! Input
+    wthl_sfc, wqw_sfc, uw_sfc, vw_sfc, & ! Input
+    wtracer_sfc,num_qtracers,w_field, &  ! Input
+    exner,phis, &                        ! Input
+    host_dse, tke, thetal, qw, &         ! Input/Output
+    u_wind, v_wind,qtracers,&            ! Input/Output
+    wthv_sec,tkh,tk,&                    ! Input/Output
+    shoc_ql,shoc_cldfrac,&               ! Input/Output
+    pblh,&                               ! Output
+    shoc_mix, isotropy,&                 ! Output (diagnostic)
+    w_sec, thl_sec, qw_sec, qwthl_sec,&  ! Output (diagnostic)
+    wthl_sec, wqw_sec, wtke_sec,&        ! Output (diagnostic)
+    uw_sec, vw_sec, w3,&                 ! Output (diagnostic)
+    wqls_sec, brunt, shoc_ql2)
+     return
+  endif
+#endif
 
   ! Compute integrals of static energy, kinetic energy, water vapor, and liquid water
   ! for the computation of total energy before SHOC is called.  This is for an
@@ -4324,6 +4350,7 @@ subroutine pblintd_height(&
     ! PBL height calculation:  Scan upward until the Richardson number between
     ! the first level and the current level exceeds the "critical" value.
     !
+
     do k=nlev-1,nlev-npbl+1,-1
        do i=1,shcol
           if (check(i)) then

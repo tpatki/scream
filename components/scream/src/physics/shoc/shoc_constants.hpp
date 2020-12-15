@@ -22,7 +22,12 @@ struct Constants
       static constexpr Scalar ustar_min      = 0.01;         // Minimum surface friction velocity
       static constexpr Scalar largeneg       = -99999999.99; // Large negative value used for linear_interp threshold
       static constexpr bool   dothetal_skew  = false;        // Allow temperature skewness to be independent of moisture variance
+
+      static constexpr Scalar fac = 100;
+      static constexpr Scalar ricr = 0.3;
     };
+
+
 
   } // namespace shoc
 } // namespace scream
