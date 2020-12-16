@@ -2001,12 +2001,12 @@ void shoc_length_f(Int shcol, Int nlev, Int nlevi, Real* host_dx, Real* host_dy,
   using MemberType = typename SHF::MemberType;
 
   std::vector<view_1d> temp_1d_d(3);
-  std::vector<view_2d> temp_2d_d(10);
+  std::vector<view_2d> temp_2d_d(8);
   std::vector<int> dim1_sizes(10, shcol);
   std::vector<int> dim2_sizes = {nlev, nlev, nlevi, nlev, nlevi,
                                  nlev, nlev, nlev,  nlev, nlev};
-  std::vector<const Real*> ptr_array = {tke,      zt_grid, zi_grid, dz_zt, dz_zi,
-                                        wthv_sec, thetal,  thv,     brunt, shoc_mix};
+  std::vector<const Real*> ptr_array = {tke,      zt_grid, zi_grid, dz_zt,
+                                        wthv_sec, thv,     brunt,   shoc_mix};
   // Sync to device
   ekat::host_to_device({host_dx, host_dy, pblh}, shcol, temp_1d_d);
   ekat::host_to_device(ptr_array, dim1_sizes, dim2_sizes, temp_2d_d, true);
@@ -2022,12 +2022,10 @@ void shoc_length_f(Int shcol, Int nlev, Int nlevi, Real* host_dx, Real* host_dy,
     zt_grid_d(temp_2d_d[1]),
     zi_grid_d(temp_2d_d[2]),
     dz_zt_d(temp_2d_d[3]),
-    dz_zi_d(temp_2d_d[4]),
-    wthv_sec_d(temp_2d_d[5]),
-    thetal_d(temp_2d_d[6]),
-    thv_d(temp_2d_d[7]),
-    brunt_d(temp_2d_d[8]),
-    shoc_mix_d(temp_2d_d[9]);
+    wthv_sec_d(temp_2d_d[4]),
+    thv_d(temp_2d_d[5]),
+    brunt_d(temp_2d_d[6]),
+    shoc_mix_d(temp_2d_d[7]);
 
   // Local variable
   view_2d thv_zi_d("thv_zi", shcol, ekat::npack<Spack>(nlevi));
@@ -2046,17 +2044,15 @@ void shoc_length_f(Int shcol, Int nlev, Int nlevi, Real* host_dx, Real* host_dy,
     const auto zt_grid_s = ekat::subview(zt_grid_d, i);
     const auto zi_grid_s = ekat::subview(zi_grid_d, i);
     const auto dz_zt_s = ekat::subview(dz_zt_d, i);
-    const auto dz_zi_s = ekat::subview(dz_zi_d, i);
     const auto wthv_sec_s = ekat::subview(wthv_sec_d, i);
-    const auto thetal_s = ekat::subview(thetal_d, i);
     const auto thv_s = ekat::subview(thv_d, i);
     const auto thv_zi_s = ekat::subview(thv_zi_d, i);
     const auto brunt_s = ekat::subview(brunt_d, i);
     const auto shoc_mix_s = ekat::subview(shoc_mix_d, i);
 
     SHF::shoc_length(team,nlev,nlevi,host_dx_s,host_dy_s,pblh_s,tke_s,
-                     zt_grid_s,zi_grid_s,dz_zt_s,dz_zi_s,wthv_sec_s,
-                     thetal_s,thv_s,thv_zi_s,brunt_s,shoc_mix_s);
+                     zt_grid_s,zi_grid_s,dz_zt_s,wthv_sec_s,
+                     thv_s,thv_zi_s,brunt_s,shoc_mix_s);
   });
 
   // Sync back to host

@@ -318,7 +318,7 @@ subroutine shoc_main ( &
 ! LOCAL VARIABLES
 
   ! time counter
-  integer :: t
+  integer :: t, i, k, p
 
   ! air density on thermo grid [kg/m3]
   real(rtype) :: rho_zt(shcol,nlev)
@@ -403,12 +403,13 @@ subroutine shoc_main ( &
        shoc_ql(:shcol,nlev),shoc_qv(:shcol,nlev),&    ! Input
        ustar,kbfs,obklen)                             ! Output
 
-    call pblintd(&
-       shcol,nlev,nlevi,&                   ! Input
-       zt_grid,zi_grid,thetal,shoc_ql,&     ! Input
-       shoc_qv,u_wind,v_wind,&              ! Input
-       ustar,obklen,kbfs,shoc_cldfrac,&     ! Input
-       pblh)                                ! Output
+    pblh = 1
+    !call pblintd(&
+    !   shcol,nlev,nlevi,&                   ! Input
+    !   zt_grid,zi_grid,thetal,shoc_ql,&     ! Input
+    !   shoc_qv,u_wind,v_wind,&              ! Input
+    !   ustar,obklen,kbfs,shoc_cldfrac,&     ! Input
+    !   pblh)                                ! Output
 
     ! Update the turbulent length scale
     call shoc_length(&
@@ -517,12 +518,13 @@ subroutine shoc_main ( &
      shoc_ql(:shcol,nlev),shoc_qv(:shcol,nlev),&    ! Input
      ustar,kbfs,obklen)                             ! Output
 
-  call pblintd(&
-     shcol,nlev,nlevi,&                   ! Input
-     zt_grid,zi_grid,thetal,shoc_ql,&     ! Input
-     shoc_qv,u_wind,v_wind,&              ! Input
-     ustar,obklen,kbfs,shoc_cldfrac,&     ! Input
-     pblh)                                ! Output
+  pblh = 1
+  !call pblintd(&
+  !   shcol,nlev,nlevi,&                   ! Input
+  !   zt_grid,zi_grid,thetal,shoc_ql,&     ! Input
+  !   shoc_qv,u_wind,v_wind,&              ! Input
+  !   ustar,obklen,kbfs,shoc_cldfrac,&     ! Input
+  !   pblh)                                ! Output
 
   return
 

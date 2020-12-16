@@ -116,24 +116,15 @@ void Functions<S,D>::shoc_main_internal(
   shoc_energy_integrals(team,nlev,host_dse,pdel,qw,shoc_ql,u_wind,v_wind,
                        se_b,ke_b,wv_b,wl_b);
 
-  team.team_barrier();
-
-
   for (Int t=0; t<nadv; ++t) {
    // Check TKE to make sure values lie within acceptable
    // bounds after host model performs horizontal advection
    check_tke(team,nlev,tke);
 
-   team.team_barrier();
-
-
    // Define vertical grid arrays needed for
    // vertical derivatives in SHOC, also
    // define air density
    shoc_grid(team,nlev,nlevi,zt_grid,zi_grid,pdel,dz_zt,dz_zi,rho_zt);
-
-   team.team_barrier();
-
 
    // Compute the planetary boundary layer height, which is an
    // input needed for the length scale calculation.
@@ -141,16 +132,13 @@ void Functions<S,D>::shoc_main_internal(
    // Update SHOC water vapor, to be used by the next two routines
    compute_shoc_vapor(team,nlev,qw,shoc_ql,shoc_qv);
 
-   team.team_barrier();
 
+   team.team_barrier();
    shoc_diag_obklen(uw_sfc,vw_sfc,wthl_sfc,
                     wqw_sfc,thetal(nlev_view_indx)[nlev_pack_indx],
                     shoc_ql(nlev_view_indx)[nlev_pack_indx],
                     shoc_qv(nlev_view_indx)[nlev_pack_indx],
                     ustar,kbfs,obklen);
-
-   team.team_barrier();
-
 
 
   //    call pblintd(&
@@ -159,7 +147,7 @@ void Functions<S,D>::shoc_main_internal(
   //       shoc_qv,u_wind,v_wind,&              ! Input
   //       ustar,obklen,kbfs,shoc_cldfrac,&     ! Input
   //       pblh)                                ! Output
-   pblh = 1;
+  // pblh = 1;
    if (false){
      shoc_pblintd_init_pot(team,nlev,thetal,shoc_ql,shoc_qv,tmp_thv);
 
@@ -197,29 +185,20 @@ void Functions<S,D>::shoc_main_internal(
      shoc_pblintd_cldcheck(zi_grid(nlev_view_indx)[nlev_pack_indx],shoc_cldfrac(nlev_view_indx)[nlev_pack_indx],pblh);
    }
 
-   team.team_barrier();
-
-
    // Update the turbulent length scale
    shoc_length(team,nlev,nlevi,host_dx,host_dy,
                pblh,tke,zt_grid,zi_grid,dz_zt,
-               dz_zi,wthv_sec,thetal,thv,thv_zi,
+               wthv_sec,thv,thv_zi,
                brunt,shoc_mix);
-
-
-   team.team_barrier();
-
 
    // Advance the SGS TKE equation
    shoc_tke(team,nlev,nlevi,dtime,wthv_sec,shoc_mix,
             dz_zi,dz_zt,pres,u_wind,v_wind,brunt,obklen,
             zt_grid,zi_grid,pblh,sterm,sterm_zt,a_diss,tke,tk,tkh,isotropy);
 
-   team.team_barrier();
-
-
    // Update SHOC prognostic variables here
    // via implicit diffusion solver
+   team.team_barrier();
    update_prognostics_implicit(team,nlev,nlevi,num_qtracers,
                                dtime,dz_zt,dz_zi,rho_zt,
                                zt_grid,zi_grid,tk,tkh,
@@ -229,9 +208,6 @@ void Functions<S,D>::shoc_main_internal(
                                thetal,
                                qw,qtracers,tke,u_wind,v_wind);
 
-   team.team_barrier();
-
-
    // Diagnose the second order moments
    diag_second_shoc_moments(team,nlev,nlevi,thetal,qw,u_wind,v_wind,
                             tke,isotropy,tkh,tk,dz_zi,zt_grid,zi_grid,
@@ -240,9 +216,6 @@ void Functions<S,D>::shoc_main_internal(
                             thl_sec,qw_sec,wthl_sec,wqw_sec,qwthl_sec,
                             uw_sec,vw_sec,wtke_sec,w_sec);
 
-   team.team_barrier();
-
-
    // Diagnose the third moment of vertical velocity,
    //  needed for the PDF closure
    diag_third_shoc_moments(team,nlev,nlevi,w_sec,thl_sec,wthl_sec,
@@ -250,10 +223,8 @@ void Functions<S,D>::shoc_main_internal(
                            zt_grid,zi_grid,w_sec_zi,isotropy_zi,
                            brunt_zi,thetal_zi,w3);
 
-   team.team_barrier();
-
-
    // Call the PDF to close on SGS cloud and turbulence
+   team.team_barrier();
    shoc_assumed_pdf(team,nlev,nlevi,thetal,qw,w_field,thl_sec,
                     qw_sec,wthl_sec,w_sec,wqw_sec,qwthl_sec,w3,
                     pres,zt_grid,zi_grid,
@@ -262,15 +233,9 @@ void Functions<S,D>::shoc_main_internal(
 
                     shoc_cldfrac,shoc_ql,wqls_sec,wthv_sec,shoc_ql2);
 
-   team.team_barrier();
-
-
    // Check TKE to make sure values lie within acceptable
    // bounds after vertical advection, etc.
    check_tke(team,nlev,tke);
-
-   team.team_barrier();
-
   }
 
 
@@ -281,21 +246,13 @@ void Functions<S,D>::shoc_main_internal(
   update_host_dse(team,nlev,thetal,shoc_ql,exner,zt_grid,
                  phis,host_dse);
 
-  team.team_barrier();
-
-
   shoc_energy_integrals(team,nlev,host_dse,pdel,qw,shoc_ql,u_wind,v_wind,
                        se_a,ke_a,wv_a,wl_a);
 
-  team.team_barrier();
-
-
+  // rho_zt linear_interp unecessary
   shoc_energy_fixer(team,nlev,nlevi,dtime,nadv,zt_grid,zi_grid,
                    se_b,ke_b,wv_b,wl_b,se_a,ke_a,wv_a,wl_a,
                    wthl_sfc,wqw_sfc,rho_zt,tke,presi,rho_zi,host_dse);
-
-  team.team_barrier();
-
 
   // Remaining code is to diagnose certain quantities
   // related to PBL.  No answer changing subroutines
@@ -308,15 +265,11 @@ void Functions<S,D>::shoc_main_internal(
   compute_shoc_vapor(team,nlev,qw,shoc_ql,shoc_qv);
 
   team.team_barrier();
-
   shoc_diag_obklen(uw_sfc,vw_sfc,wthl_sfc,wqw_sfc,
                   thetal(nlev_view_indx)[nlev_pack_indx],
                   shoc_ql(nlev_view_indx)[nlev_pack_indx],
                   shoc_qv(nlev_view_indx)[nlev_pack_indx],
                   ustar,kbfs,obklen);
-
-
-  team.team_barrier();
 
   //  pblintd(&
   //     shcol,nlev,nlevi,&                   ! Input

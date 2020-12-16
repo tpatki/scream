@@ -262,6 +262,20 @@ void Functions<S,D>::shoc_assumed_pdf(
         std_s1 = ekat::sqrt(ekat::max(0,
                                       ekat::square(cthl1)*thl2_1
                                       + ekat::square(cqt1)*qw2_1 - 2*cthl1*sqrtthl2_1*cqt1*sqrtqw2_1*r_qwthl_1));
+
+        for (Int p=0; p<Spack::n; ++p)
+          std::cout << std::setprecision(3)
+                    << std::setw(10) << team.league_rank() << "," << p + k*Spack::n << ": "
+                   // << std::setw(10) << cthl1[p] << ","
+                    << std::setw(10) << thl2_1[p] << ","
+                    //<< std::setw(10) << cqt1[p] << ","
+                    << std::setw(10) << qw2_1[p] << ","
+                    << std::setw(10) << sqrtthl2_1[p] << ","
+                    << std::setw(10) << sqrtqw2_1[p] << ","
+                    << std::setw(10) << r_qwthl_1[p] << ","
+                    << std::setw(10) << std_s1[p] << std::endl;
+
+
         s1 = qw1_1-qs1*((1 + beta1*qw1_1)/(1 + beta1*qs1));
         C1.set(std_s1 != 0, sp(0.5)*(1 + ekat::erf(s1/(sqrt2*std_s1))));
         C1.set(std_s1 == 0 && s1 > 0, 1);
