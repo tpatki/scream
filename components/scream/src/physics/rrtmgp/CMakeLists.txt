@@ -1,8 +1,6 @@
 # RRTMGP++ requires YAKL
 add_subdirectory(${SCREAM_BASE_DIR}/../../externals/YAKL ${CMAKE_CURRENT_BINARY_DIR}/YAKL_build)
 target_compile_options(yakl PUBLIC $<$<COMPILE_LANGUAGE:Fortran>:-fno-default-real-8 -fno-default-double-8>)
-target_compile_options(yakl PUBLIC $<$<COMPILE_LANGUAGE:CXX>:-std=c++14>)
-set_target_properties(yakl PROPERTIES CXX_STANDARD 14)
 
 # Add RRTMGP source files.
 set(RRTMGP_SRCS

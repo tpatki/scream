@@ -42,8 +42,7 @@ if (Kokkos_ENABLE_CUDA)
   EkatSetNvccWrapper()
 endif()
 
-#set (CMAKE_CXX_STANDARD 11)
-set (CMAKE_CXX_STANDARD 14)
+set (CMAKE_CXX_STANDARD 11)
 
 if (NOT CIME_BUILD)
   project(SCREAM CXX Fortran)
