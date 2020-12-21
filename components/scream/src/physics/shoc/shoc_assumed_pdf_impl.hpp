@@ -263,19 +263,6 @@ void Functions<S,D>::shoc_assumed_pdf(
                                       ekat::square(cthl1)*thl2_1
                                       + ekat::square(cqt1)*qw2_1 - 2*cthl1*sqrtthl2_1*cqt1*sqrtqw2_1*r_qwthl_1));
 
-        for (Int p=0; p<Spack::n; ++p)
-          std::cout << std::setprecision(3)
-                    << std::setw(10) << team.league_rank() << "," << p + k*Spack::n << ": "
-                   // << std::setw(10) << cthl1[p] << ","
-                    << std::setw(10) << thl2_1[p] << ","
-                    //<< std::setw(10) << cqt1[p] << ","
-                    << std::setw(10) << qw2_1[p] << ","
-                    << std::setw(10) << sqrtthl2_1[p] << ","
-                    << std::setw(10) << sqrtqw2_1[p] << ","
-                    << std::setw(10) << r_qwthl_1[p] << ","
-                    << std::setw(10) << std_s1[p] << std::endl;
-
-
         s1 = qw1_1-qs1*((1 + beta1*qw1_1)/(1 + beta1*qs1));
         C1.set(std_s1 != 0, sp(0.5)*(1 + ekat::erf(s1/(sqrt2*std_s1))));
         C1.set(std_s1 == 0 && s1 > 0, 1);
@@ -316,6 +303,16 @@ void Functions<S,D>::shoc_assumed_pdf(
       shoc_ql(k) = ekat::max(0, a*ql1 + (1 - a)*ql2);
 
       // Compute cloud liquid variance (CLUBB formulation, adjusted to SHOC parameters based)
+      for (Int p=0; p<Spack::n; ++p)
+        std::cout << std::setprecision(3)
+                  << std::setw(10) << team.league_rank() << "," << k*Spack::n+p << ": "
+                  << std::setw(10) << a[p] << ","
+                  << std::setw(10) << s1[p] << ","
+                  << std::setw(10) << ql1[p] << ","
+                  << std::setw(10) << C1[p] << ","
+                  << std::setw(10) << std_s1[p] << ","
+                  << std::endl;
+
       shoc_ql2(k) = ekat::max(0, a*(s1*ql1 + C1*ekat::square(std_s1))
                                  + (1 - a)*(s2*ql2 + C2*ekat::square(std_s2))
                                  - ekat::square(shoc_ql(k)));

@@ -2374,6 +2374,8 @@ subroutine shoc_assumed_pdf(&
         shoc_ql(i,k)) ! Output
 
       ! Compute cloud liquid variance (CLUBB formulation, adjusted to SHOC parameters based)
+       write(*,*) i-1,k-1,":",a,s1,ql1,C1,std_s1
+
       call shoc_assumed_pdf_compute_cloud_liquid_variance(&
         a,s1,ql1,C1,std_s1,s2,ql2,C2,std_s2,shoc_ql(i,k),& ! Input
         shoc_ql2(i,k))                                     ! Output

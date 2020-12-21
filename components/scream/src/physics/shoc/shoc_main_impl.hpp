@@ -2,6 +2,7 @@
 #define SHOC_MAIN_IMPL_HPP
 
 #include "shoc_functions.hpp" // for ETI only but harmless for GPU
+#include <iomanip>
 
 namespace scream {
 namespace shoc {
@@ -147,7 +148,7 @@ void Functions<S,D>::shoc_main_internal(
   //       shoc_qv,u_wind,v_wind,&              ! Input
   //       ustar,obklen,kbfs,shoc_cldfrac,&     ! Input
   //       pblh)                                ! Output
-  // pblh = 1;
+   pblh = 1;
    if (false){
      shoc_pblintd_init_pot(team,nlev,thetal,shoc_ql,shoc_qv,tmp_thv);
 
