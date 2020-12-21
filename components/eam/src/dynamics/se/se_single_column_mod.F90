@@ -30,6 +30,8 @@ contains
 
 subroutine scm_setinitial(elem)
 
+  use kinds, only: real_kind
+
   implicit none
 
   type(element_t), intent(inout) :: elem(:)
@@ -88,8 +90,15 @@ subroutine scm_setinitial(elem)
 
             do k=1,PLEV
               if (have_ps) elem(ie)%state%ps_v(i,j,1) = psobs
-              if (have_u) elem(ie)%state%v(i,j,1,k,1) = uobs(k)
-              if (have_v) elem(ie)%state%v(i,j,2,k,1) = vobs(k)
+              
+              if (iop_mode) then
+                if (have_u) elem(ie)%state%v(i,j,1,k,1) = 0.0_real_kind
+                if (have_v) elem(ie)%state%v(i,j,2,k,1) = 0.0_real_kind
+              else    
+                if (have_u) elem(ie)%state%v(i,j,1,k,1) = uobs(k)
+                if (have_v) elem(ie)%state%v(i,j,2,k,1) = vobs(k)
+              endif
+              
               if (have_numliq) elem(ie)%state%Q(i,j,k,inumliq) = numliqobs(k)
               if (have_cldliq) elem(ie)%state%Q(i,j,k,icldliq) = cldliqobs(k)
               if (have_numice) elem(ie)%state%Q(i,j,k,inumice) = numiceobs(k)
@@ -249,16 +258,20 @@ subroutine apply_SC_forcing(elem,hvcoord,tl,n,t_before_advance,nets,nete)
 #ifdef MODEL_THETA_L
       ! If using the theta-l dycore then need to get the exner function
       !   and reference levels "dp", so we can convert the SCM forecasted
-      !   temperature back potential temperature on reference levels.
+      !   temperature back potential temperature on reference levels.      
       dp(:,:,:) = elem(ie)%state%dp3d(:,:,:,t1)
       call pnh_and_exner_from_eos(hvcoord,elem(ie)%state%vtheta_dp(:,:,:,t1),&
           dp,elem(ie)%state%phinh_i(:,:,:,t1),pnh,exner,dpnh_dp_i)
 #endif      
 
       dt=dtime
+      
+      call get_temperature(elem(ie),temperature,hvcoord,t1)
 
       do j=1,np_todo
         do i=1,np_todo
+        
+!          write(*,*) 'B4_VTHETADP ', elem(ie)%state%vtheta_dp(i,j,:,t1)
 
           stateQin_qfcst(:,:) = elem(ie)%state%Q(i,j,:,:)
           stateQin1(:,:) = stateQin_qfcst(:,:)
@@ -281,7 +294,7 @@ subroutine apply_SC_forcing(elem,hvcoord,tl,n,t_before_advance,nets,nete)
              dummy1(:) = 0.0
           endif
 #endif
-
+!          write(*,*) 'BF_FORECAST_T ', temperature(i,j,:)
           call forecast(begchunk,elem(ie)%state%ps_v(i,j,t1),&
             elem(ie)%state%ps_v(i,j,t1),forecast_ps,forecast_u,&
             elem(ie)%state%v(i,j,1,:,t1),elem(ie)%state%v(i,j,1,:,t1),&
@@ -297,8 +310,10 @@ subroutine apply_SC_forcing(elem,hvcoord,tl,n,t_before_advance,nets,nete)
           !   to be converted back to potential temperature on reference levels, 
           !   which is what dp_coupling expects
           call get_R_star(Rstar,elem(ie)%state%Q(:,:,:,1))
-!          elem(ie)%state%vtheta_dp(i,j,:,t1) = (forecast_t(:)*Rstar(i,j,:)*dp(i,j,:))/&
-!                (Rgas*exner(i,j,:))
+          elem(ie)%state%vtheta_dp(i,j,:,t1) = (forecast_t(:)*Rstar(i,j,:)*dp(i,j,:))/&
+                (Rgas*exner(i,j,:))
+!          write(*,*) 'AF_FORECAST_T ', forecast_t(:)
+!          write(*,*) 'AF_VTHETADP ', elem(ie)%state%vtheta_dp(i,j,:,t1)
 #else
           elem(ie)%state%T(i,j,:,t1) = forecast_t(:)
 #endif
